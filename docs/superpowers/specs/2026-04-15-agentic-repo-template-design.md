@@ -92,13 +92,48 @@ Wildcard allow (bare tool names, per JSON schema regex — `Bash(*)` and `WebFet
     "WebFetch", "WebSearch", "Agent", "mcp__*"
   ],
   "deny": [
-    "Read(~/.ssh/id_*)", "Read(~/.ssh/*.pem)",
-    "Read(~/.aws/**)", "Read(~/.gnupg/**)",
+    // --- Bash: destructive commands ---
     "Bash(sudo *)", "Bash(rm -rf /)",
     "Bash(docker push *)",
-    "Bash(git push)", "Bash(git push *)",
+    "Bash(git push --force*)", "Bash(git push * --force*)",
+    "Bash(git push -f)", "Bash(git push -f *)",
+    "Bash(git push * -f)", "Bash(git push * -f *)",
     "Bash(git commit --no-verify *)", "Bash(git commit -n *)",
-    "Bash(make push)", "Bash(make push *)"
+
+    // --- Read: private material (reading into model context is the leak) ---
+    "Read(~/.ssh/id_*)", "Read(~/.ssh/*.pem)",
+    "Read(~/.aws/**)", "Read(~/.gnupg/**)",
+    "Read(~/.kube/**)", "Read(~/.config/gcloud/**)",
+    "Read(~/.npmrc)", "Read(~/.pypirc)",
+    "Read(~/.docker/config.json)", "Read(~/.netrc)",
+    "Read(~/.config/gh/**)",
+    "Read(~/.bash_history)", "Read(~/.zsh_history)",
+
+    // --- Edit/Write: privilege escalation + persistence vectors ---
+    // Claude's own user-level config (MUST be protected: could widen perms)
+    "Write(~/.claude.json)", "Edit(~/.claude.json)",
+    "Write(~/.claude/settings.json)", "Edit(~/.claude/settings.json)",
+
+    // Credential/config dirs (tampering rewrites registries, auth, etc.)
+    "Write(~/.ssh/**)", "Edit(~/.ssh/**)",
+    "Write(~/.aws/**)", "Edit(~/.aws/**)",
+    "Write(~/.gnupg/**)", "Edit(~/.gnupg/**)",
+    "Write(~/.kube/**)", "Edit(~/.kube/**)",
+    "Write(~/.config/gcloud/**)", "Edit(~/.config/gcloud/**)",
+    "Write(~/.gitconfig)", "Edit(~/.gitconfig)",
+    "Write(~/.npmrc)", "Edit(~/.npmrc)",
+    "Write(~/.pypirc)", "Edit(~/.pypirc)",
+    "Write(~/.docker/config.json)", "Edit(~/.docker/config.json)",
+    "Write(~/.netrc)", "Edit(~/.netrc)",
+    "Write(~/.config/gh/**)", "Edit(~/.config/gh/**)",
+
+    // Shell init (persistence)
+    "Write(~/.bashrc)", "Edit(~/.bashrc)",
+    "Write(~/.zshrc)", "Edit(~/.zshrc)",
+    "Write(~/.profile)", "Edit(~/.profile)",
+    "Write(~/.bash_profile)", "Edit(~/.bash_profile)",
+    "Write(~/.zprofile)", "Edit(~/.zprofile)",
+    "Write(~/.zshenv)", "Edit(~/.zshenv)"
   ]
 }
 ```
@@ -161,7 +196,7 @@ Evidence for each:
 | superpowers | 113+ skill invocations combined; brainstorming (85) and writing-plans (52) dominate |
 | commit-commands | Low direct invocation but streamlines commits across all work types; low cost |
 | claude-md-management | Autonomous work requires good project memory; this plugin maintains it |
-| session-report | PreCompact hook auto-invokes it at context-limit events (see hooks) |
+| session-report | Manual skill: `/session-report`. Reads JSONL transcripts from disk (live or archived by the PreCompact hook) and generates narrative analytics. Not hook-invoked — the plugin's own behavior is transcript-file-based, and `type: prompt` hooks cannot instruct the main agent to run skills. |
 | hookify | User-requested; meta-tool for customizing automation post-clone |
 | claude-code-setup | User-requested; helps onboard new repos created from the template |
 | feature-dev | 128 combined subagent dispatches (`code-reviewer` 114, `code-explorer` 14) |
@@ -200,10 +235,16 @@ Three hooks, all from the base:
   ],
   "PreCompact": [
     { "hooks": [
-      { "type": "prompt",
-        "prompt": "Context is about to be compacted. Run /session-report now and save to .claude/session-reports/$(date +%Y%m%dT%H%M).md. Capture: what was accomplished, what's blocked, next obvious step." },
       { "type": "command",
-        "command": "mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; { echo '# Pre-compact snapshot'; date -u +%FT%TZ; echo; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } >> \"$CLAUDE_PROJECT_DIR/.claude/session-reports/pre-compact.log\"" }
+        "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); [ -n \"$CLAUDE_TRANSCRIPT_PATH\" ] && cp \"$CLAUDE_TRANSCRIPT_PATH\" \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-transcript.jsonl\" 2>/dev/null; { echo \"# Pre-compact $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-gitstate.md\"; echo \"[PreCompact] Context compaction imminent. Transcript archived at .claude/session-reports/${TS}-precompact-transcript.jsonl — run /session-report for a narrative summary before history is compressed.\" >&2'",
+        "timeout": 30000 }
+    ]}
+  ],
+  "SessionEnd": [
+    { "hooks": [
+      { "type": "command",
+        "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); { echo \"# Session end $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-session-end.md\"'",
+        "timeout": 10000 }
     ]}
   ]
 }
@@ -213,7 +254,9 @@ Hook rationales:
 
 - **SessionStart**: 6/32 of the user's existing repos do this; cheap context.
 - **ConfigChange** (shipped v2.1.105): auditability — appends to `.claude/audit.log`, which is committed to git. Every change Claude makes to its own config becomes a git-reviewable signal.
-- **PreCompact** (shipped v2.1.105): combines a `type: prompt` hook (shipped v2.1.83, invokes `/session-report` as a prompt sent to Claude before compaction) with a plain command fallback that captures git state unconditionally. Belt + suspenders.
+- **PreCompact** (shipped v2.1.105): `type: command` only. Archives the full session transcript JSONL (`$CLAUDE_TRANSCRIPT_PATH`) plus a git-state snapshot under `.claude/session-reports/` at the moment compaction is about to fire. Zero token cost to the main context; runs as a plain shell command outside the model. Does **not** attempt to invoke `/session-report` via a `type: prompt` hook — research established that prompt hooks run as separate Haiku evaluations and cannot instruct the main agent to execute a skill. A separate hook would therefore have been silent-failure-prone. The archived JSONL preserves the full pre-compaction history so `/session-report` (a manual skill invocation) can analyze it afterward if a narrative report is wanted.
+- **SessionEnd** (session-level): captures git state once when the session closes. Unlike per-turn `Stop`, this fires exactly once per session. Useful for async review — you return to a repo, read the latest `*-session-end.md`, and see the final state.
+- **`CLAUDE_TRANSCRIPT_PATH`** availability in PreCompact hooks was fixed in v2.1.105 (was empty in earlier versions per GitHub issue #13668). The template README documents v2.1.105+ as minimum Claude Code version.
 
 ### Base files
 
@@ -334,13 +377,46 @@ Signature: `./.claude/refresh-skills.sh [<skill-name>]`.
 
 ## 9. Security & autonomous-work considerations
 
-- **Bare-tool-name allow is the only syntactically correct wildcard.** JSON schema regex `(?=.*[^)*?])` inside the argument position rejects `Bash(*)` and `WebFetch(*)`. Documented in spec so future maintenance doesn't reintroduce the lint-noisy form.
-- **Deny list is the fence.** Two critical fixes (v2.1.77 + v2.1.101) reaffirm that deny rules override PreToolUse hook `"allow"` decisions. The template's deny list is the effective safety perimeter.
-- **Sandbox is defense in depth.** `failIfUnavailable: true` ensures sessions don't silently degrade to unsandboxed mode.
-- **`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`** strips Anthropic + cloud provider credentials from every Bash subprocess, hook, and MCP stdio server.
-- **`audit.log`** is committed to git. Every modification to `.claude/*` appends a line; after an autonomous session, the user can inspect `git diff` on `audit.log` for the trail.
-- **`.gitignore` blocks `.env*` / `*.pem` / `*.key`.** Complements the permission deny list: deny list prevents Claude from *reading* the user's `~/.ssh` material; `.gitignore` prevents project-local secrets from being *committed*.
-- **`git push` denied by default.** Forces the user to push manually. Matches the pattern in the "careful" quartile of the user's existing repos.
+### The layered defense model
+
+The template's security is layered. Each layer has a distinct scope and known limits. Understanding which layer catches what prevents false confidence.
+
+| Layer | What it filters | Scope limit |
+|---|---|---|
+| `permissions.deny` | Command-line strings Claude **directly invokes** | Does not see inside scripts, Makefile recipes, or subprocess-of-subprocess chains |
+| `sandbox.filesystem` | OS-level read/write from Bash subprocesses | Does not apply to `excludedCommands` (git, ssh, scp, devbox, nix, gpg) which run unsandboxed |
+| `sandbox.network` | Outbound network from Bash subprocesses | Does not apply to WebFetch (runs outside the sandbox) |
+| `.gitignore` | What gets committed | Does not prevent secret exposure at runtime, only in git history |
+| `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` | Credentials in subprocess environment | Does not strip credentials embedded in files or passed as args |
+
+**Consequences worth stating explicitly:**
+
+- A deny pattern like `Bash(rm -rf /)` catches only the literal string. A destructive script (e.g., `./deploy.sh` with `rm -rf $UNSET_VAR` expanding to `rm -rf `) is not caught at the permission layer. The sandbox's `denyWrite` on `/etc /usr /bin /sbin` is what actually limits damage from such scripts, and only for paths inside the sandbox guard.
+- Deny patterns like `Bash(make push *)` or `Bash(make deploy *)` are **cargo-cult**: if `make push` wraps `git push`, the `git push --force*` patterns already handle the real hazard whether invoked directly or via make. If `make deploy` does something else destructive, a pattern on the target name still doesn't prevent the action inside the recipe. The template deliberately does not ship these to avoid false confidence.
+- `git` is in `sandbox.excludedCommands` (so it runs unsandboxed with full filesystem access). The defense against destructive git is the `git push --force*` and `git commit --no-verify` patterns, plus user review of diffs before merge.
+
+### Specific choices
+
+- **Bare-tool-name allow is the only syntactically correct wildcard.** JSON schema regex `(?=.*[^)*?])` inside the argument position rejects `Bash(*)` and `WebFetch(*)`. Documented so future maintenance doesn't reintroduce the lint-noisy form.
+- **Force-push denied, normal push allowed.** `git push` is auto-approved so autonomous agents can ship their work; `git push --force` / `-f` / `--force-with-lease` are blocked as the real hazard (history rewrites).
+- **`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`** strips Anthropic + cloud-provider credentials from every Bash subprocess, hook, and MCP stdio server. The realistic blast-radius limiter for prompt-injection-driven subprocess execution.
+- **`audit.log`** is committed to git. Every modification to `.claude/*` appends a line; after an autonomous session, `git diff` on `audit.log` is the trail.
+- **`.gitignore` blocks `.env*` / `*.pem` / `*.key`.** Complements the permission deny list: deny list prevents Claude from *reading* `~/.ssh` material; `.gitignore` prevents project-local secrets from being *committed*.
+- **`sandbox.failIfUnavailable: true`** ensures sessions don't silently degrade to unsandboxed mode when the OS sandbox is unavailable.
+
+### Why Edit/Write denies matter even though sandbox blocks writes outside CWD
+
+The sandbox default policy blocks Bash subprocess writes outside the current working directory. However, Claude's built-in `Read`, `Edit`, and `Write` tools **bypass the sandbox entirely** — they are governed by the permission system only. Without explicit `Edit(...)` and `Write(...)` deny entries for sensitive paths, an agent could directly modify `~/.claude.json`, `~/.ssh/authorized_keys`, or `~/.gitconfig` using the `Edit` tool — widening its own permissions, installing a persistence hook, or changing git internals — regardless of sandbox configuration. The deny list above closes this gap.
+
+### Escape hatch: `settings.local.json`
+
+The template deliberately ships **strict** denies across the board (no `ask` tier in the baseline). Legitimate occasional needs — editing your own `~/.claude.json`, running `aws configure`, debugging a failing SSH profile — are not baseline workflows for autonomous agents and should not be pre-approved in a template that ships to others.
+
+The standard escape hatch is `~/.claude/settings.local.json` or `.claude/settings.local.json`:
+- Gitignored (entry is in the template's `.gitignore`).
+- Merges with `settings.json` at load time (arrays concatenate).
+- A user who knows they need e.g. `"ask": ["Edit(~/.gitconfig)"]` or `"allow": ["Read(~/.aws/**)"]` for a specific project adds it locally, and it stays out of git history.
+- No shipped `settings.local.json.example` — deliberately keep the template surface minimal. The escape hatch is documented in `README.md`.
 
 ## 10. Testing
 
