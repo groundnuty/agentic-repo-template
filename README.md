@@ -28,7 +28,7 @@ The script merges the profile's overlay into `.claude/settings.json`, copies pro
 
 ## Requirements
 
-- [Claude Code](https://claude.com/claude-code) v2.1.105 or later (needed for `PreCompact` hook with `$CLAUDE_TRANSCRIPT_PATH`, `ConfigChange` hook, `sandbox.failIfUnavailable`).
+- [Claude Code](https://claude.com/claude-code) v2.1.111 or later (for Opus 4.7 support) (needed for `PreCompact` hook with `$CLAUDE_TRANSCRIPT_PATH`, `ConfigChange` hook, `sandbox.failIfUnavailable`).
 - `jq` on your `$PATH` (for the init script's deep-merge).
 - `git` on your `$PATH` (for the paper profile's upstream-sourced skill refresh; optional otherwise).
 - **Scholar Gateway** claude.ai connector — enable in claude.ai account settings if using `research` or `paper` profiles.

@@ -22,3 +22,13 @@ If `settings.local.json` does not already allow an operation that appears genuin
 
 - The `PreCompact` hook archives the session transcript and prints a reminder to stderr. If you see that reminder and context is getting full, run `/session-report` manually before the compaction compresses history.
 - The `SessionEnd` hook captures a final git-state snapshot to `.claude/session-reports/`.
+
+## Notes for Opus 4.7+
+
+Claude Opus 4.7 behaves differently from earlier models in ways that matter for autonomous work:
+
+- **More literal instruction following.** The model does not silently generalize an instruction from one item to another, or infer requests you didn't make. Be explicit about scope. If you want a change applied across multiple files, say so.
+- **Fewer subagents by default.** The model prefers direct reasoning over delegation. If you want subagent dispatch (e.g., feature-dev:code-reviewer, Explore), request it explicitly.
+- **Fewer tool calls by default.** If a task seems underdone or reasoning seems shallow, don't prompt around it — check the `effortLevel` in settings.json. The template defaults to `xhigh` for agentic work. Lower values (low, medium) scope narrower.
+- **Response length calibrated to complexity.** Short prompts get short answers; open-ended analysis gets long ones. If you need a specific verbosity, say so explicitly.
+- **Cybersecurity safeguards may refuse** legitimate security work (penetration testing, red-teaming). For those use cases, apply to the Cyber Verification Program.
