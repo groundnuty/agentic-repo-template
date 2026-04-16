@@ -1,0 +1,10 @@
+{
+  "skills": [
+    {
+      "name": "humanizer",
+      "source": "git",
+      "url": "https://github.com/groundnuty/humanizer.git",
+      "ref": "main"
+    }
+  ]
+}
