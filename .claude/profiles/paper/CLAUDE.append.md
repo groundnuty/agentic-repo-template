@@ -13,6 +13,7 @@ Same one-time setup as the `research` profile. Scholar Gateway + Google Scholar 
 This profile vendors two skills into `.claude/skills/`:
 - `humanizer` — removes AI-writing patterns from prose. Invoke via `/humanizer`. Upstream: https://github.com/groundnuty/humanizer
 - `analyze-paper` — structured analysis of a reference paper PDF. Invoke via `/analyze-paper <path-to-pdf>`.
+- `tikz` — TikZ collision-audit tool. Invoke via `/tikz [path/to/file.tex]` to find and fix visual collisions (label-on-arrow, boundary overlaps, crossing arrows) using mathematical gap calculations rather than eyeballing. Adapted from [MixtapeTools](https://github.com/scunning1975/MixtapeTools).
 
 Use `./.claude/refresh-skills.sh` to pull fresh versions of upstream-sourced skills (currently: `humanizer`).
 
