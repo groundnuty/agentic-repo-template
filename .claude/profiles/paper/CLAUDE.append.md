@@ -21,3 +21,13 @@ Use `./.claude/refresh-skills.sh` to pull fresh versions of upstream-sourced ski
 - `writing-quality.md` (from info), `citation-discipline.md` + `reading-before-editing.md` (from research).
 - `latex-bibtex-discipline.md` — LaTeX and bibliography conventions.
 - `humanize-prose.md` — how to use the humanizer skill in the paper workflow.
+- `tikz-prevention.md` — 6-rule protocol to prevent common TikZ failure modes (collisions, asymmetric scaling, missing edge labels).
+- `tikz-library-bundle.md` — canonical preamble and specialty packages (`tikz-cd`, `pgfplots`, `circuitikz`, `forest`).
+
+### TikZ figures
+
+Canonical diagram starting points live at `.claude/rules/tikz-snippets/`:
+
+- `flowchart.tex`, `tree.tex`, `graph.tex`, `plot.tex`, `block-diagram.tex`
+
+Workflow: copy nearest snippet → edit → compile standalone → `\input{}` into paper. See `tikz-snippets/README.md` for details.
