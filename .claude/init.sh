@@ -91,16 +91,20 @@ apply_settings_overlay() {
   mv "$tmp" "$settings"
 }
 
-copy_rules_and_skills() {
+copy_profile_content() {
   local profile_dir="$1"
-  if [ -d "$profile_dir/rules" ]; then
-    mkdir -p .claude/rules
-    cp -R "$profile_dir/rules/." .claude/rules/
-  fi
-  if [ -d "$profile_dir/skills" ]; then
-    mkdir -p .claude/skills
-    cp -R "$profile_dir/skills/." .claude/skills/
-  fi
+  # Copy any of: rules/, skills/, agents/, hooks/, templates/ that exist in the profile.
+  for subdir in rules skills agents hooks templates; do
+    if [ -d "$profile_dir/$subdir" ]; then
+      mkdir -p ".claude/$subdir"
+      cp -R "$profile_dir/$subdir/." ".claude/$subdir/"
+    fi
+  done
+}
+
+# Kept for backward-compat with older test expectations.
+copy_rules_and_skills() {
+  copy_profile_content "$1"
 }
 
 append_claude_md() {
@@ -201,6 +205,15 @@ main() {
     echo "  Rules present:   $(find .claude/rules -name '*.md' -type f | wc -l | tr -d ' ')"
     if [ -d .claude/skills ]; then
       echo "  Skills vendored: $(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')"
+    fi
+    if [ -d .claude/agents ]; then
+      echo "  Agents present:  $(find .claude/agents -maxdepth 1 -mindepth 1 -type f -name '*.md' | wc -l | tr -d ' ')"
+    fi
+    if [ -d .claude/hooks ]; then
+      echo "  Hook scripts:    $(find .claude/hooks -maxdepth 1 -mindepth 1 -type f | wc -l | tr -d ' ')"
+    fi
+    if [ -d .claude/templates ]; then
+      echo "  Templates:       $(find .claude/templates -maxdepth 1 -mindepth 1 -type f -name '*.md' | wc -l | tr -d ' ')"
     fi
     if [ "$keep_profiles" = "1" ]; then
       echo "  profiles/ and init.sh retained (--keep-profiles)."
