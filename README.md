@@ -28,7 +28,7 @@ The script merges the profile's overlay into `.claude/settings.json`, copies pro
 
 ## Profile contents matrix
 
-Everything each profile ships on top of the base, by surface. Legend: ✓ = added here; `✓ᵢ` = inherited.
+Every artifact by exact name, one row per item. Cell `✓` means the artifact is present in that profile after running `init.sh`. Items are grouped by surface (plugins / rules / skills / agents / hooks / templates) and within each surface ordered by commonality — items present in all four profiles come first, then items in three, two, one.
 
 ### Post-init totals
 
@@ -39,54 +39,67 @@ Everything each profile ships on top of the base, by surface. Legend: ✓ = adde
 | `paper` | 9 | 21 | 11 | 5 | 3 | 5 |
 | `code` | 9 | 14 | 1 | — | — | 4 |
 
-### Plugins
+### What's common vs specific at a glance
 
-8 baseline plugins are enabled in every profile: `superpowers`, `commit-commands`, `claude-md-management`, `session-report`, `hookify`, `claude-code-setup`, `feature-dev`, `elements-of-style`. Profiles add:
+- **In all four profiles** (base + info): 8 plugins, 10 rules, 1 skill, 4 templates.
+- **In three profiles** (`research` + `paper` + `code` — *not* `info`): 1 plugin (`context7`).
+- **In two profiles** (`research` + `paper`): 3 rules (`citation-discipline`, `reading-before-editing`, `pdf-processing`).
+- **Paper-only**: 8 rules, 10 skills, 5 agents, 3 hooks, 1 template.
+- **Code-only**: 4 rules.
+
+### Plugins (9 unique, `context7` conditional)
 
 | Plugin | info | research | paper | code |
 |---|:-:|:-:|:-:|:-:|
-| `context7@external-plugins` (library docs lookup via MCP) | — | ✓ | ✓ᵢ | ✓ |
+| `superpowers@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `commit-commands@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `claude-md-management@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `session-report@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `hookify@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `claude-code-setup@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `feature-dev@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ |
+| `elements-of-style@superpowers-marketplace` | ✓ | ✓ | ✓ | ✓ |
+| `context7@external-plugins` | — | ✓ | ✓ | ✓ |
 
-### Rules
-
-Base (shipped regardless of profile): `autonomous-work`, `pr-discipline`, `project-conventions`.
+### Rules (25 unique)
 
 | Rule | info | research | paper | code |
 |---|:-:|:-:|:-:|:-:|
-| `writing-quality.md` — prose conventions, banned AI-isms | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `summary-parity.md` — don't surgical-patch drifting summaries, rewrite structurally | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `exploration-fast-track.md` — 60/100 quality threshold for experimental work | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `exploration-folder-protocol.md` — `explorations/` sandbox lifecycle | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `meta-governance.md` — template-vs-working-project distinction, two-tier memory | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `session-logging.md` — three-trigger logging discipline | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `content-invariants.md` — numbered invariants pattern for agents to cite | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
-| `citation-discipline.md` — never cite from memory, verify before citing | — | ✓ | ✓ᵢ | — |
-| `reading-before-editing.md` — read entire file before edits to research docs | — | ✓ | ✓ᵢ | — |
-| `pdf-processing.md` — safe large-PDF chunked workflow | — | ✓ | ✓ᵢ | — |
+| `autonomous-work.md` — how to behave unattended | ✓ | ✓ | ✓ | ✓ |
+| `pr-discipline.md` — commit/PR format | ✓ | ✓ | ✓ | ✓ |
+| `project-conventions.md` — per-project overrides (stub) | ✓ | ✓ | ✓ | ✓ |
+| `writing-quality.md` — prose conventions, banned AI-isms | ✓ | ✓ | ✓ | ✓ |
+| `summary-parity.md` — don't surgical-patch drifting summaries | ✓ | ✓ | ✓ | ✓ |
+| `exploration-fast-track.md` — 60/100 threshold for experiments | ✓ | ✓ | ✓ | ✓ |
+| `exploration-folder-protocol.md` — `explorations/` lifecycle | ✓ | ✓ | ✓ | ✓ |
+| `meta-governance.md` — template vs working project, 2-tier memory | ✓ | ✓ | ✓ | ✓ |
+| `session-logging.md` — three-trigger logging discipline | ✓ | ✓ | ✓ | ✓ |
+| `content-invariants.md` — numbered invariants for agents to cite | ✓ | ✓ | ✓ | ✓ |
+| `citation-discipline.md` — never cite from memory | — | ✓ | ✓ | — |
+| `reading-before-editing.md` — full read before research edits | — | ✓ | ✓ | — |
+| `pdf-processing.md` — safe large-PDF chunked workflow | — | ✓ | ✓ | — |
 | `latex-bibtex-discipline.md` — LaTeX + BibTeX conventions | — | — | ✓ | — |
 | `humanize-prose.md` — how to use the humanizer skill | — | — | ✓ | — |
 | `tikz-prevention.md` — 6-rule protocol for safe TikZ | — | — | ✓ | — |
 | `tikz-library-bundle.md` — canonical preamble + specialty packages | — | — | ✓ | — |
-| `tikz-snippets/` — 5 canonical compilable standalone figures | — | — | ✓ | — |
+| `tikz-snippets/` — 5 compilable standalone figures + README | — | — | ✓ | — |
 | `post-flight-verification.md` — Chain-of-Verification discipline | — | — | ✓ | — |
 | `proofreading-protocol.md` — three-phase propose → approve → apply | — | — | ✓ | — |
-| `cross-artifact-review.md` — paper review auto-invokes code review on referenced scripts | — | — | ✓ | — |
+| `cross-artifact-review.md` — paper review auto-invokes code review | — | — | ✓ | — |
 | `makefile-conventions.md` — standard Make targets | — | — | — | ✓ |
 | `devbox-usage.md` — devbox idioms and CI parity | — | — | — | ✓ |
 | `testing-discipline.md` — TDD, 80% coverage, isolation | — | — | — | ✓ |
-| `verification-before-done.md` — the "am I actually done?" gate | — | — | — | ✓ |
+| `verification-before-done.md` — "am I actually done?" gate | — | — | — | ✓ |
 
-### Skills
-
-Invoke via slash commands (e.g., `/humanizer`, `/verify-claims`).
+### Skills (11 unique; invoke via `/<name>`)
 
 | Skill | Source | info | research | paper | code |
 |---|---|:-:|:-:|:-:|:-:|
-| `permission-check` | [pedrohcgs](https://github.com/pedrohcgs/claude-code-my-workflow) | ✓ | ✓ᵢ | ✓ᵢ | ✓ᵢ |
+| `permission-check` | pedrohcgs | ✓ | ✓ | ✓ | ✓ |
 | `humanizer` | [groundnuty/humanizer](https://github.com/groundnuty/humanizer) (git upstream, refreshable) | — | — | ✓ | — |
-| `analyze-paper` | vendored (local), generalized from ccgrid2026 | — | — | ✓ | — |
+| `analyze-paper` | local (generalized from a ccgrid2026 paper repo) | — | — | ✓ | — |
 | `tikz` | [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools) — 6-pass collision audit | — | — | ✓ | — |
-| `verify-claims` | pedrohcgs — CoVe via forked subagent | — | — | ✓ | — |
+| `verify-claims` | [pedrohcgs](https://github.com/pedrohcgs/claude-code-my-workflow) — CoVe via forked subagent | — | — | ✓ | — |
 | `validate-bib` | pedrohcgs — structural + semantic bib validation | — | — | ✓ | — |
 | `respond-to-referees` | pedrohcgs — R&R response letter generator | — | — | ✓ | — |
 | `seven-pass-review` | pedrohcgs — 7 parallel forked review lenses | — | — | ✓ | — |
@@ -94,33 +107,35 @@ Invoke via slash commands (e.g., `/humanizer`, `/verify-claims`).
 | `review-paper` | pedrohcgs — single-pass + adversarial modes | — | — | ✓ | — |
 | `audit-reproducibility` | pedrohcgs — cross-check numeric claims against code | — | — | ✓ | — |
 
-### Agents (dispatched via `Task`/`Agent`)
+### Agents (5 unique — paper only)
 
-| Agent | Source | paper |
-|---|---|:-:|
-| `claim-verifier` | pedrohcgs | ✓ |
-| `proofreader` | pedrohcgs | ✓ |
-| `editor` | pedrohcgs — desk review + picks 2 disagreeing referees | ✓ |
-| `methods-referee` | pedrohcgs — methods/rigor review | ✓ |
-| `domain-referee` | pedrohcgs — substantive review with disposition | ✓ |
+Dispatched via `Task`/`Agent` subagents, not directly by the user.
 
-### Hooks (opt-in — reference from your `.claude/settings.local.json` to enable)
+| Agent | Source | info | research | paper | code |
+|---|---|:-:|:-:|:-:|:-:|
+| `claim-verifier.md` | pedrohcgs — fresh-context CoVe verifier | — | — | ✓ | — |
+| `proofreader.md` | pedrohcgs — grammar/typo/overflow review | — | — | ✓ | — |
+| `editor.md` | pedrohcgs — desk review + picks 2 disagreeing referees | — | — | ✓ | — |
+| `methods-referee.md` | pedrohcgs — methods/rigor review | — | — | ✓ | — |
+| `domain-referee.md` | pedrohcgs — substantive review with disposition | — | — | ✓ | — |
 
-| Hook | paper |
-|---|:-:|
-| `notify.sh` — cross-platform desktop notification on session events | ✓ |
-| `log-reminder.py` — stop-hook reminder to update session log | ✓ |
-| `verify-reminder.py` — post-Edit reminder to compile/verify academic files | ✓ |
+### Hooks (3 unique, paper only — opt-in, reference from `settings.local.json` to enable)
 
-### Templates
+| Hook | info | research | paper | code |
+|---|:-:|:-:|:-:|:-:|
+| `notify.sh` — cross-platform desktop notification on session events | — | — | ✓ | — |
+| `log-reminder.py` — stop-hook reminder to update session log | — | — | ✓ | — |
+| `verify-reminder.py` — post-Edit reminder to compile/verify academic files | — | — | ✓ | — |
 
-| Template | info | paper |
-|---|:-:|:-:|
-| `requirements-spec.md` — MUST/SHOULD/MAY + CLEAR/ASSUMED/BLOCKED format | ✓ | ✓ᵢ |
-| `constitutional-governance.md` — non-negotiables vs preferences | ✓ | ✓ᵢ |
-| `exploration-readme.md` — `explorations/` sandbox README | ✓ | ✓ᵢ |
-| `session-log.md` — session-log format | ✓ | ✓ᵢ |
-| `journal-profile-template.md` — per-venue review calibration | — | ✓ |
+### Templates (5 unique)
+
+| Template | info | research | paper | code |
+|---|:-:|:-:|:-:|:-:|
+| `requirements-spec.md` — MUST/SHOULD/MAY + CLEAR/ASSUMED/BLOCKED format | ✓ | ✓ | ✓ | ✓ |
+| `constitutional-governance.md` — non-negotiables vs preferences | ✓ | ✓ | ✓ | ✓ |
+| `exploration-readme.md` — `explorations/` sandbox README | ✓ | ✓ | ✓ | ✓ |
+| `session-log.md` — session-log format | ✓ | ✓ | ✓ | ✓ |
+| `journal-profile-template.md` — per-venue review calibration | — | — | ✓ | — |
 
 ### External requirements (documented, not shipped)
 
@@ -134,7 +149,7 @@ Invoke via slash commands (e.g., `/humanizer`, `/verify-claims`).
 
 ### Attribution
 
-The `paper` profile adopts 17 pieces from [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) (MIT) and 1 from [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools). Each vendored file carries an inline attribution header.
+The `paper` profile adopts 17 pieces from [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) (MIT), 1 from [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools) (use freely, attribution appreciated), and 1 from [groundnuty/humanizer](https://github.com/groundnuty/humanizer) (git-upstream-sourced, refreshable via `refresh-skills.sh`). Each vendored file carries an inline attribution header.
 
 ## Requirements
 
