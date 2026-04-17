@@ -176,6 +176,33 @@ The `paper` profile adopts 17 pieces from [pedrohcgs/claude-code-my-workflow](ht
 
 - `~/.claude/settings.local.json` or `.claude/settings.local.json` (gitignored) — merge with base at load time. Per-project `allow`/`ask`/`deny` overrides and hook activations live here.
 
+## Versioning and release model
+
+This is the **release artifact** repo. Development happens in the sibling [agentic-repo-template-research](https://github.com/groundnuty/agentic-repo-template-research) (private) — this repo is what "Use this template" consumes and is always release-ready.
+
+- **`main`** is always the **latest stable release**. Every commit merged here has passed the test suite in the research repo.
+- **Git tags** (`v0.1.0`, `v0.1.1`, …) are addressable snapshots — useful if you want to pin a specific version.
+- **GitHub Releases** (visible at the repo's [Releases](https://github.com/groundnuty/agentic-repo-template/releases) page) correspond 1:1 with tags and carry release notes.
+- **[CHANGELOG.md](./CHANGELOG.md)** — user-facing release notes per version.
+
+### "Use this template" gives you `main @ HEAD` (= latest release)
+
+GitHub's "Use this template" button always copies from the default branch at HEAD. It does not offer tag selection. So:
+
+- Click the button → you get the latest stable version.
+- Need an older version? Clone, then `git checkout v0.1.4` (or whichever tag) before running `init.sh`.
+
+### Semantic versioning policy
+
+Currently `v0.1.x` (pre-stable). Minor bumps are additive; breaking changes go in CHANGELOG as **BREAKING**.
+
+Post-`v1.0.0`:
+- **MAJOR** — breaking changes (removed plugin, changed `init.sh` CLI, changed `settings.json` schema requirements).
+- **MINOR** — new profile, new plugin added to baseline, new rule shipped.
+- **PATCH** — documentation fixes, small rule-content adjustments, refreshed vendored skills.
+
+---
+
 ## Updating the template or debating decisions
 
 All design research, empirical data, and decision rationale live in a companion repo: [agentic-repo-template-research](https://github.com/groundnuty/agentic-repo-template-research) (private). Before changing the template, read the research there.
