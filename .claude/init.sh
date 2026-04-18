@@ -126,6 +126,28 @@ merge_skills_manifest() {
   mv "$tmp" "$dest"
 }
 
+cleanup_template_metadata() {
+  # Remove/reset root-level files that are template metadata, not user content.
+  # These are present because GitHub's "Use this template" copies them from the
+  # template repo's default branch; they document the template itself, not the
+  # consuming project.
+
+  # README.md: replace with a minimal stub carrying the repo name.
+  # LICENSE, .gitignore, and the root CLAUDE.md stub are kept — all reasonable
+  # starting points the user can keep or replace.
+  if [ -f README.md ] && head -1 README.md | grep -q '^# agentic-repo-template'; then
+    local repo_name
+    repo_name=$(basename "$(pwd)")
+    printf '# %s\n' "$repo_name" > README.md
+  fi
+
+  # CHANGELOG.md: template release history is not relevant to the consuming
+  # project. Delete if it looks like our template CHANGELOG.
+  if [ -f CHANGELOG.md ] && head -5 CHANGELOG.md | grep -q 'User-facing history of this template'; then
+    rm -f CHANGELOG.md
+  fi
+}
+
 self_delete() {
   rm -rf .claude/profiles
   rm -f  .claude/init.sh
@@ -192,6 +214,10 @@ main() {
     append_claude_md "$profile_dir"
     merge_skills_manifest "$profile_dir"
   done
+
+  if [ "$dry_run" = "0" ]; then
+    cleanup_template_metadata
+  fi
 
   if [ "$dry_run" = "0" ] && [ "$keep_profiles" = "0" ]; then
     self_delete
