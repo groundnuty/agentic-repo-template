@@ -104,7 +104,8 @@
     "network": {
       "allowedDomains": [
         "*"
-      ]
+      ],
+      "deniedDomains": []
     },
     "filesystem": {
       "allowWrite": [

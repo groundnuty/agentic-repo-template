@@ -153,7 +153,7 @@ The `paper` profile adopts 17 pieces from [pedrohcgs/claude-code-my-workflow](ht
 
 ## Requirements
 
-- [Claude Code](https://claude.com/claude-code) v2.1.111 or later (for Opus 4.7 support) (needed for `PreCompact` hook with `$CLAUDE_TRANSCRIPT_PATH`, `ConfigChange` hook, `sandbox.failIfUnavailable`).
+- [Claude Code](https://claude.com/claude-code) v2.1.113 or later (for Opus 4.7 support, sandbox-bypass fix, and exec-wrapper deny coverage) (needed for `PreCompact` hook with `$CLAUDE_TRANSCRIPT_PATH`, `ConfigChange` hook, `sandbox.failIfUnavailable`).
 - `jq` on your `$PATH` (for the init script's deep-merge).
 - `git` on your `$PATH` (for the paper profile's upstream-sourced skill refresh; optional otherwise).
 - **Scholar Gateway** claude.ai connector — enable in claude.ai account settings if using `research` or `paper` profiles.

@@ -32,3 +32,9 @@ Claude Opus 4.7 behaves differently from earlier models in ways that matter for 
 - **Fewer tool calls by default.** If a task seems underdone or reasoning seems shallow, don't prompt around it — check the `effortLevel` in settings.json. The template defaults to `xhigh` for agentic work. Lower values (low, medium) scope narrower.
 - **Response length calibrated to complexity.** Short prompts get short answers; open-ended analysis gets long ones. If you need a specific verbosity, say so explicitly.
 - **Cybersecurity safeguards may refuse** legitimate security work (penetration testing, red-teaming). For those use cases, apply to the Cyber Verification Program.
+
+## Bash deny-rule coverage (Claude Code v2.1.113+)
+
+Our `Bash(...)` deny patterns (sudo, `git push --force*`, `docker push *`, `rm -rf /`, `git commit --no-verify`) now match commands wrapped in common exec wrappers as of Claude Code v2.1.113: `env`, `sudo`, `watch`, `ionice`, `setsid`, and similar. So `env sudo rm -rf /` or `watch sudo docker push ...` are caught by our existing denies without us needing to enumerate every wrapped variant.
+
+This is a Claude Code-level behavior change, not a template-level rule change — no action needed on your part, but worth knowing the surface area is wider than the literal patterns suggest.
