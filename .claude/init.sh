@@ -2,7 +2,7 @@
 #
 # .claude/init.sh — apply a profile overlay to the base template.
 #
-# Usage: ./.claude/init.sh <info|research|paper|code> [--keep-profiles] [--dry-run]
+# Usage: ./.claude/init.sh <info|research|paper|paper-latex|code> [--keep-profiles] [--dry-run]
 #
 # Deep-merges profiles/<profile>/settings.overlay.json into .claude/settings.json,
 # copies rule files and skill dirs, appends CLAUDE.append.md to .claude/CLAUDE.md,
@@ -10,21 +10,23 @@
 
 set -eu
 
-VALID_PROFILES=(info research paper code)
+VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.11"
+TEMPLATE_VERSION="v0.1.12"
 
 usage() {
   cat <<EOF
-Usage: ./.claude/init.sh <info|research|paper|code> [--keep-profiles] [--dry-run]
+Usage: ./.claude/init.sh <info|research|paper|paper-latex|code> [--keep-profiles] [--dry-run]
 
 Applies a profile overlay to the base .claude/ tree.
 
 Profiles:
-  info      Pure information work — reports, document analysis, no code.
-  research  Technical research — reading docs, light code analysis, no code writing.
-  paper     Academic paper writing — LaTeX, BibTeX, Scholar Gateway, humanizer.
-  code      Code-centric work — Makefile/devbox/testing conventions.
+  info         Pure information work — reports, document analysis, no code.
+  research     Technical research — reading docs, light code analysis, no code writing.
+  paper        Academic paper / manuscript writing — prose polishing, peer review,
+               format-agnostic (works for LaTeX, Markdown, Word, Google Docs).
+  paper-latex  Paper + LaTeX / BibTeX / TikZ layer. Apply when compiling with LaTeX.
+  code         Code-centric work — Makefile/devbox/testing conventions.
 
 Options:
   --keep-profiles  Do not delete .claude/profiles/ and this script after apply.
@@ -46,6 +48,7 @@ resolve_chain() {
     info)     echo "info" ;;
     research) echo "info research" ;;
     paper)    echo "info research paper" ;;
+    paper-latex) echo "info research paper paper-latex" ;;
     code)     echo "info code" ;;
     *)        echo "unknown" ; return 1 ;;
   esac

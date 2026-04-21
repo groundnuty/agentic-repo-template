@@ -6,6 +6,60 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.12] — 2026-04-21
+
+**⚠ BREAKING for `paper` profile users.** Split the monolithic `paper` profile into two: a format-agnostic `paper` (prose/manuscript work for any format) and `paper-latex` (the LaTeX + BibTeX + TikZ layer on top).
+
+### Why
+
+The previous `paper` profile assumed LaTeX authoring. Users writing proposals, reports, or non-LaTeX manuscripts were getting TikZ prevention rules, `validate-bib` for BibTeX, and a `verify-reminder.py` hook triggering on `.tex` edits — none of which applied. Split is cleaner long-term and matches our `info` → `research` → `paper` → `paper-latex` inheritance pattern.
+
+### New chain topology
+
+```
+info
+  └── research
+        └── paper               ← new: format-agnostic prose/manuscript
+              └── paper-latex   ← new: LaTeX/BibTeX/TikZ layer
+  └── code
+```
+
+### Moved from `paper` to `paper-latex`
+
+- **Rules:** `latex-bibtex-discipline.md`, `tikz-prevention.md`, `tikz-library-bundle.md`, `tikz-snippets/` (5 `.tex` starters + README).
+- **Skills:** `tikz` (MixtapeTools 6-pass collision audit), `validate-bib` (BibTeX structural + semantic validation).
+- **Hooks:** `verify-reminder.py` (post-Edit reminder triggered on `.tex`/`.bib` edits).
+
+### Stays in `paper`
+
+Prose and peer-review tools — all format-agnostic:
+
+- **Rules:** `humanize-prose`, `post-flight-verification`, `proofreading-protocol`, `cross-artifact-review`.
+- **Skills:** `humanizer`, `analyze-paper`, `verify-claims`, `respond-to-referees`, `seven-pass-review`, `proofread`, `review-paper`, `audit-reproducibility`.
+- **Agents:** all 5 (`claim-verifier`, `proofreader`, `editor`, `methods-referee`, `domain-referee`).
+- **Hooks:** `notify.sh`, `log-reminder.py`.
+- **Templates:** `journal-profile-template.md`.
+
+### Post-init totals after the split
+
+| Profile | Plugins | Rules | Skills | Agents | Hooks | Templates |
+|---|---:|---:|---:|---:|---:|---:|
+| `paper` (new scope) | 9 | 17 | 9 | 5 | 2 | 5 |
+| `paper-latex` | 9 | 21 | 11 | 5 | 3 | 5 |
+
+### Migration for existing `paper`-profile repos
+
+If your manuscript is LaTeX, re-run the initialization with the `paper-latex` profile (or cherry-pick `latex-bibtex-discipline.md`, `tikz-*`, `tikz-snippets/`, `skills/tikz/`, `skills/validate-bib/`, `hooks/verify-reminder.py` from this release into your existing `.claude/`). If your paper work is format-agnostic, the new `paper` profile is lighter — nothing to do.
+
+If you applied from v0.1.11 or earlier and want `/template-check` to recognize v0.1.12, bump your `.claude/.template-version` to `v0.1.12` after catching up.
+
+### Other changes
+
+- `init.sh`: `VALID_PROFILES` + `resolve_chain` + usage text + `TEMPLATE_VERSION` all extended for `paper-latex`.
+- `tests/test-init.sh` (research repo): 91 tests, 13 new assertions ensuring `paper` does NOT ship `tikz`/`validate-bib`/LaTeX rules, and `paper-latex` inherits paper + adds the LaTeX layer.
+
+---
+
 ## [v0.1.11] — 2026-04-20
 
 `code` profile pre-empts per-host sandbox prompts for devops tooling.

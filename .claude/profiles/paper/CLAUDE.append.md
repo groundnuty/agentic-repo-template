@@ -1,8 +1,8 @@
-<!-- Profile: paper -->
+<\!-- Profile: paper -->
 
 ## Profile: paper
 
-Academic paper writing — LaTeX/BibTeX, literature review, prose polishing, structured peer review.
+Academic paper / manuscript writing — literature review, prose polishing, structured peer review. Format-agnostic (works for LaTeX, Markdown, Word, Google Docs). If your paper is authored in LaTeX/BibTeX with TikZ figures, layer the `paper-latex` profile on top.
 
 ### Scholar Gateway
 
@@ -10,28 +10,20 @@ Same one-time setup as the `research` profile. Scholar Gateway + Google Scholar 
 
 ### Vendored skills
 
-This profile vendors two skills into `.claude/skills/`:
+This profile vendors the following into `.claude/skills/`:
+
 - `humanizer` — removes AI-writing patterns from prose. Invoke via `/humanizer`. Upstream: https://github.com/groundnuty/humanizer
 - `analyze-paper` — structured analysis of a reference paper PDF. Invoke via `/analyze-paper <path-to-pdf>`.
-- `tikz` — TikZ collision-audit tool. Invoke via `/tikz [path/to/file.tex]` to find and fix visual collisions (label-on-arrow, boundary overlaps, crossing arrows) using mathematical gap calculations rather than eyeballing. Adapted from [MixtapeTools](https://github.com/scunning1975/MixtapeTools).
 
 Use `./.claude/refresh-skills.sh` to pull fresh versions of upstream-sourced skills (currently: `humanizer`).
 
 ### Active profile-specific rules
 
-- `writing-quality.md` (from info), `citation-discipline.md` + `reading-before-editing.md` (from research).
-- `latex-bibtex-discipline.md` — LaTeX and bibliography conventions.
+- From the `info` chain: `writing-quality.md`. From `research`: `citation-discipline.md`, `reading-before-editing.md`, `pdf-processing.md`.
 - `humanize-prose.md` — how to use the humanizer skill in the paper workflow.
-- `tikz-prevention.md` — 6-rule protocol to prevent common TikZ failure modes (collisions, asymmetric scaling, missing edge labels).
-- `tikz-library-bundle.md` — canonical preamble and specialty packages (`tikz-cd`, `pgfplots`, `circuitikz`, `forest`).
-
-### TikZ figures
-
-Canonical diagram starting points live at `.claude/rules/tikz-snippets/`:
-
-- `flowchart.tex`, `tree.tex`, `graph.tex`, `plot.tex`, `block-diagram.tex`
-
-Workflow: copy nearest snippet → edit → compile standalone → `\input{}` into paper. See `tikz-snippets/README.md` for details.
+- `post-flight-verification.md` — Chain-of-Verification discipline.
+- `proofreading-protocol.md` — three-phase propose → approve → apply editorial discipline.
+- `cross-artifact-review.md` — paper review auto-invokes code review when scripts are referenced.
 
 ### Peer-review workflow (adopted from pedrohcgs/claude-code-my-workflow, MIT)
 
@@ -44,8 +36,7 @@ Workflow: copy nearest snippet → edit → compile standalone → `\input{}` in
 - `/seven-pass-review` — 7 forked lenses (abstract, intro, methods, results, robustness, prose, citations) in parallel, then synthesized.
 - `agents/editor.md` + `agents/methods-referee.md` + `agents/domain-referee.md` — peer-review simulation (populate `templates/journal-profile-template.md` with your target venues).
 
-**Bibliography + figures:**
-- `/validate-bib` — structural + semantic bib validation (missing/unused/DOI/drift).
+**Reproducibility:**
 - `/audit-reproducibility` — cross-check numeric claims against code outputs.
 - `rules/cross-artifact-review.md` — auto-invoke code review when paper references scripts.
 
@@ -64,4 +55,7 @@ Workflow: copy nearest snippet → edit → compile standalone → `\input{}` in
 **Hooks (opt-in, configure in your `.claude/settings.local.json`):**
 - `hooks/notify.sh` — cross-platform desktop notification on session events.
 - `hooks/log-reminder.py` — stop-hook reminder to update session log.
-- `hooks/verify-reminder.py` — post-Edit reminder to compile/verify academic files.
+
+### LaTeX / BibTeX / TikZ workflow
+
+If you are writing in LaTeX with TikZ figures, also apply the `paper-latex` profile — it adds `latex-bibtex-discipline.md`, the TikZ prevention + library rules + snippet starters, `/tikz` collision-audit skill, `/validate-bib` bibliography validation, and the `verify-reminder.py` post-edit-compile hook.
