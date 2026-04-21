@@ -6,6 +6,20 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.11] — 2026-04-20
+
+`code` profile pre-empts per-host sandbox prompts for devops tooling.
+
+- `profiles/code/settings.overlay.json`: `sandbox.excludedCommands` adds `helm:*`, `kubectl:*`, `kustomize:*`, `terraform:*`, `docker:*`, `podman:*`, `aws:*`, `gcloud:*`, `az:*`. Same trust model as base entries (`git:*`, `ssh:*`, `gpg:*`, `devbox:*`, `nix:*`).
+
+**Why:** the Bash sandbox can intercept network for tools that honor proxy env vars, but Go-based binaries (`helm`, `kubectl`) use raw sockets and bypass the proxy. With base settings, every chart repo or kubeconfig context triggered a per-host "Network request outside of sandbox" prompt. Excluding these commands lets them run unsandboxed (matching the existing pattern for `git:*` etc.) — your `Edit/Write` denies on credential paths still apply.
+
+**Other profiles unchanged.** `info`, `research`, `paper` profiles do not receive these excludes — verified by tests.
+
+**Patch existing v0.1.x repos** without re-init: add the same nine entries to `.claude/settings.json` → `sandbox.excludedCommands`, or drop them into a gitignored `.claude/settings.local.json`.
+
+---
+
 ## [v0.1.10] — 2026-04-20
 
 Bug fix: auto-memory writes were being blocked by the sandbox.
