@@ -6,6 +6,19 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.10] — 2026-04-20
+
+Bug fix: auto-memory writes were being blocked by the sandbox.
+
+- `settings.json`: `sandbox.filesystem.allowWrite` now includes `~/.claude/projects`. Without this, the first time Claude Code's auto-memory system tries to `mkdir ~/.claude/projects/<project-slug>/memory/` (e.g. via a subagent's Bash call), it hits `Operation not permitted` and silently loses the memory write. Symptom: agents acted as if memory was unavailable in repos initialized from v0.1.9 or earlier.
+- `tests/test-init.sh`: regression assertion that `~/.claude/projects` stays in `allowWrite`.
+
+This is a low-risk broadening — `~/.claude/projects/` is Claude Code's own session-state and memory tree, not a sensitive credential location. The deny list still blocks `~/.claude/settings.json` and `~/.claude.json` explicitly.
+
+**Fix in existing repos initialized from v0.1.9 or earlier:** add `"~/.claude/projects"` to `.claude/settings.json` → `sandbox.filesystem.allowWrite`, or re-run `init.sh` from a v0.1.10+ clone.
+
+---
+
 ## [v0.1.9] — 2026-04-20
 
 Version tracking and `/template-check` slash command.

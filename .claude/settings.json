@@ -109,6 +109,7 @@
     },
     "filesystem": {
       "allowWrite": [
+        "~/.claude/projects",
         "~/.cache/devbox",
         "~/.local/share/devbox",
         "~/.nix-profile",
