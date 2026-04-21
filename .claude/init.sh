@@ -12,6 +12,7 @@ set -eu
 
 VALID_PROFILES=(info research paper code)
 JQ="${JQ:-jq}"
+TEMPLATE_VERSION="v0.1.9"
 
 usage() {
   cat <<EOF
@@ -148,6 +149,18 @@ cleanup_template_metadata() {
   fi
 }
 
+stamp_template_version() {
+  # Record which template version/profile was applied so /template-check can
+  # compare against the latest GitHub release later.
+  local applied_at profile="$1"
+  applied_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  cat > .claude/.template-version <<EOF
+version=${TEMPLATE_VERSION}
+profile=${profile}
+applied_at=${applied_at}
+EOF
+}
+
 self_delete() {
   rm -rf .claude/profiles
   rm -f  .claude/init.sh
@@ -217,6 +230,7 @@ main() {
 
   if [ "$dry_run" = "0" ]; then
     cleanup_template_metadata
+    stamp_template_version "$profile"
   fi
 
   if [ "$dry_run" = "0" ] && [ "$keep_profiles" = "0" ]; then

@@ -6,6 +6,49 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.9] — 2026-04-20
+
+Version tracking and `/template-check` slash command.
+
+- `init.sh`: stamps `.claude/.template-version` on every run with `version=`, `profile=`, and `applied_at=`. Used by the new slash command below.
+- `commands/template-check.md`: `/template-check` compares your stamp against the latest GitHub release. Prints the CHANGELOG delta if behind. Does not modify files.
+- `README.md`: new `## Upgrading` section with the manual update flow. Automated `/template-upgrade` is deferred to v0.2 (needs a merge spec for user-owned files like `CLAUDE.md` and `project-conventions.md`).
+
+---
+
+## [v0.1.8] — 2026-04-20
+
+Claude Code v2.1.113 improvements adopted.
+
+- **Minimum Claude Code version bumped to v2.1.113** — closes a sandbox-bypass window on `Bash(dangerouslyDisableSandbox: true)` calls (v2.1.112 and earlier could bypass without a prompt under some conditions). Load-bearing for the template's permission posture, not cosmetic.
+- `settings.json`: `sandbox.network.deniedDomains: []` as a discoverable empty extension point. Users' threat models differ (pentest/academic/enterprise); shipping the knob lets each tune without adding a new top-level field.
+- `rules/autonomous-work.md`: new paragraph on Bash deny-rule coverage. As of v2.1.113, Bash permission patterns also match commands wrapped in common exec wrappers (`env`, `sudo`, `watch`, `ionice`, `nice`, `setsid`, `chrt`, `stdbuf`, `taskset`, `timeout`). So `env sudo rm -rf /` is caught by our existing denies automatically.
+- Fixes also picked up for free: subagent `output_config.effort` 400 errors on models without effort support (affected our `xhigh` baseline), and resumed-compaction sessions that had been failing with "Extra usage is required for long context requests" after `PreCompact`.
+
+---
+
+## [v0.1.7] — 2026-04-17
+
+`init.sh` metadata cleanup for "Use this template" consumer repos.
+
+- `init.sh`: new `cleanup_template_metadata()` strips template-authored files that GitHub's "Use this template" leaves in consumer repos:
+  - **`README.md`** — replaced with `# <repo-name>` stub if the current content looks like the template's own README (starts with `# agentic-repo-template`).
+  - **`CHANGELOG.md`** — deleted if the top matches the template's release-history preamble ("User-facing history of this template").
+  - **`CLAUDE.md`**, **`LICENSE`**, **`.gitignore`** — preserved (reasonable starting points).
+- Negative case guarded: if the user has already replaced `README.md` / `CHANGELOG.md` with their own content, both are left untouched.
+- Fixes a real leak observed in the wild (a consumer repo inherited 13KB of template README + 6.8KB of template CHANGELOG).
+
+---
+
+## [v0.1.6] — 2026-04-17
+
+Release-management scaffolding.
+
+- **CHANGELOG.md** — introduced. Anchor the release tags (v0.1.0–v0.1.5) that already exist; every future tag gets a matching entry here and a matching GitHub Release.
+- **README.md** — new "Versioning and release model" section: `main` = latest stable, tags are addressable snapshots, GitHub Releases carry notes, `v0.1.x` is pre-stable (additive minor bumps).
+
+---
+
 ## [v0.1.5] — 2026-04-17
 
 Documentation polish. No new features.

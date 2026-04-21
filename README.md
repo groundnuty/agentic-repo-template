@@ -167,10 +167,12 @@ The `paper` profile adopts 17 pieces from [pedrohcgs/claude-code-my-workflow](ht
 - `rules/` — three base rules: `autonomous-work.md`, `pr-discipline.md`, `project-conventions.md`.
 - `audit.log` — committed to git; `ConfigChange` hook appends a line on every `.claude/*` modification.
 - `session-reports/` — session transcripts and git-state snapshots from `PreCompact` / `SessionEnd` hooks.
+- `commands/template-check.md` — `/template-check` slash command; see [Upgrading](#upgrading).
 
 ### Post-init leftovers
 
 - `refresh-skills.sh` — re-fetch upstream-sourced skills (currently: `humanizer` in the paper profile).
+- `.template-version` — stamp recording which template `version` / `profile` was applied and `applied_at` timestamp. Used by `/template-check`.
 
 ### Escape hatch
 
@@ -200,6 +202,55 @@ Post-`v1.0.0`:
 - **MAJOR** — breaking changes (removed plugin, changed `init.sh` CLI, changed `settings.json` schema requirements).
 - **MINOR** — new profile, new plugin added to baseline, new rule shipped.
 - **PATCH** — documentation fixes, small rule-content adjustments, refreshed vendored skills.
+
+## Upgrading
+
+Every `init.sh` run stamps `.claude/.template-version` with the version, profile, and timestamp that were applied. This is how you (or Claude) can tell later which version a given repo is tied to.
+
+### Checking for updates
+
+From inside a repo initialized from this template, run the `/template-check` slash command:
+
+```
+/template-check
+```
+
+Claude reads the stamp, fetches the latest release tag from [the template repo's GitHub API](https://api.github.com/repos/groundnuty/agentic-repo-template/releases/latest), and prints one of:
+
+- **Up to date** — nothing to do.
+- **Behind** — shows the CHANGELOG entries between your stamp and the latest tag.
+- **No network** — can't reach `api.github.com`; prints your stamp and stops.
+- **No stamp** — this repo predates v0.1.9 or wasn't initialized via `init.sh`; prints instructions for creating a stamp by hand.
+
+### Applying an update (manual)
+
+There's no automated upgrade path — user-owned files (`CLAUDE.md`, `.claude/rules/project-conventions.md`) can't be safely merged without human review. Manual flow:
+
+```bash
+# 1. Clone the latest template elsewhere, check out the target tag.
+git clone https://github.com/groundnuty/agentic-repo-template.git /tmp/arp-latest
+git -C /tmp/arp-latest checkout v0.1.9   # or whichever tag
+
+# 2. Diff against your repo's .claude/ to see what changed.
+diff -r /tmp/arp-latest/.claude .claude | less
+
+# 3. Cherry-pick what you want. Likely candidates:
+#    - settings.json deny-list expansions
+#    - new rules in rules/
+#    - updated rule content
+#    Unlikely candidates (already user-owned):
+#    - CLAUDE.md (root)
+#    - rules/project-conventions.md
+```
+
+After updating, re-stamp `.claude/.template-version` to reflect the new version:
+
+```bash
+sed -i '' "s/^version=.*/version=v0.1.9/" .claude/.template-version   # macOS
+# or on Linux:  sed -i "s/^version=.*/version=v0.1.9/" .claude/.template-version
+```
+
+An automated `/template-upgrade` command that handles the diff/merge is tracked for v0.2.x; for now, manual review is the safer default.
 
 ---
 
