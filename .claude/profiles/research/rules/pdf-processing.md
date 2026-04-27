@@ -1,8 +1,3 @@
----
-paths:
-  - "master_supporting_docs/**"
----
-
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->
 
 

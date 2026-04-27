@@ -12,7 +12,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.12"
+TEMPLATE_VERSION="v0.1.13"
 
 usage() {
   cat <<EOF

@@ -17,7 +17,7 @@ explorations/
 ├── ACTIVE_PROJECTS.md
 ├── [project]/
 │   ├── README.md          # Goal, status, findings
-│   ├── R/                 # Code (use _v1, _v2 for iterations)
+│   ├── <code-dirs>/       # Code (use _v1, _v2 for iterations); subdirs your stack needs (src/, R/, notebooks/, …)
 │   ├── scripts/           # Test scripts
 │   ├── output/            # Results
 │   └── SESSION_LOG.md     # Progress notes
@@ -28,7 +28,7 @@ explorations/
 
 ## Lifecycle
 
-1. **Create** -- `mkdir -p explorations/[name]/{R,scripts,output}` + README from `templates/exploration-readme.md`
+1. **Create** -- `mkdir -p explorations/[name]/` + subdirs for your stack + README from `templates/exploration-readme.md`
 2. **Develop** -- work entirely within the exploration folder
 3. **Decide:**
 

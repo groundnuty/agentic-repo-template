@@ -1,13 +1,3 @@
----
-paths:
-  - ".claude/skills/lit-review/SKILL.md"
-  - ".claude/skills/research-ideation/SKILL.md"
-  - ".claude/skills/respond-to-referees/SKILL.md"
-  - ".claude/skills/review-paper/SKILL.md"
-  - ".claude/skills/interview-me/SKILL.md"
-alwaysApply: false
----
-
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->
 
 

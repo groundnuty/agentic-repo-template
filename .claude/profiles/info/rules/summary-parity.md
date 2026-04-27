@@ -2,7 +2,6 @@
 paths:
   - "CHANGELOG.md"
   - "README.md"
-  - "**/*.qmd"
   - ".claude/skills/*/SKILL.md"
   - ".claude/rules/*.md"
   - ".claude/agents/*.md"

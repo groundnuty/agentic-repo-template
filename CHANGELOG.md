@@ -6,6 +6,54 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.13] — 2026-04-27
+
+Fix: 7 rules adopted from pedrohcgs/claude-code-my-workflow had `paths:` frontmatter referencing files/dirs (`Slides/`, `Quarto/`, `master_supporting_docs/`, `Preambles/`, R-stack subdirs, three skills we don't ship) that don't exist in a generic user repo. Per [Claude Code's memory docs](https://code.claude.com/docs/en/memory), path-scoped rules only load when files matching the glob are accessed — so these rules were silently dead in every repo initialized from this template.
+
+### What changed
+
+- **Removed** `info/rules/content-invariants.md` (the "INV-1 through INV-12" set). Every invariant referenced a stack we don't assume (Beamer/Quarto/SCSS/R/ggplot2). Couldn't be generalized — dropping was cleaner than rewriting 12 invariants out of recognition.
+- **Stripped `paths:` frontmatter** from 3 rules so they load unconditionally where they belong:
+  - `research/rules/pdf-processing.md` (now active for any user with PDFs, not just `master_supporting_docs/**`)
+  - `paper/rules/proofreading-protocol.md` (now active across LaTeX, Markdown, Word, Google Docs)
+  - `paper/rules/post-flight-verification.md` (CoVe protocol; was scoped to skills we don't ship like `lit-review`/`research-ideation`/`interview-me`)
+- **Generalized body** in 2 rules to drop R-stack specifics:
+  - `info/rules/exploration-fast-track.md` (no more `R/scripts/output` subdir assumption — pick what your stack needs)
+  - `info/rules/exploration-folder-protocol.md` (same)
+- **Trimmed `paths:`** in 1 rule:
+  - `info/rules/summary-parity.md` (dropped `**/*.qmd`, kept the 5 generic patterns)
+
+### Post-init rule counts (one less per profile after dropping `content-invariants.md`)
+
+| Profile | v0.1.12 | v0.1.13 |
+|---|---:|---:|
+| `info` | 10 | 9 |
+| `research` | 13 | 12 |
+| `paper` | 17 | 16 |
+| `paper-latex` | 21 | 20 |
+| `code` | 14 | 13 |
+
+### Tests
+
+4 new regression assertions in `tests/test-init.sh`:
+
+1. No rule's `paths:` references unshipped directories (`Slides/`, `Quarto/`, etc.) or skills we don't ship (`lit-review`, `research-ideation`, `interview-me`).
+2. Every `paths:` entry uses a generic user-repo pattern from a small allow-list (`.claude/**`, `explorations/**`, `CHANGELOG.md`, `README.md`).
+3. `content-invariants.md` is gone from every profile.
+4. The 3 unscoped rules carry no leading frontmatter.
+
+97 tests total, all green.
+
+### Honest note on what was wrong with v0.1.4 / D27
+
+When we adopted 17 pieces from pedrohcgs we audited workflow shape (does this fit our generic template?) but didn't audit `paths:` frontmatter against the assumption that user repos don't have his specific layout. v0.1.13 closes that gap; the test allow-list prevents regression. **No content is lost in your repo from this fix** — these rules weren't loading; that was the bug.
+
+### Not in scope (flagged for v0.1.14)
+
+`paper/rules/cross-artifact-review.md` ships frontmatter using Cursor's `.mdc` format (`description:`, `globs:`, `alwaysApply:`). Claude Code ignores those fields entirely, so the rule loads unconditionally already. The misleading frontmatter is harmless but worth cleaning up.
+
+---
+
 ## [v0.1.12] — 2026-04-21
 
 **⚠ BREAKING for `paper` profile users.** Split the monolithic `paper` profile into two: a format-agnostic `paper` (prose/manuscript work for any format) and `paper-latex` (the LaTeX + BibTeX + TikZ layer on top).

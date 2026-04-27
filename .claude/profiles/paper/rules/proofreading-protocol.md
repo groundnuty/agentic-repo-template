@@ -1,10 +1,3 @@
----
-paths:
-  - "Slides/**/*.tex"
-  - "Quarto/**/*.qmd"
-  - ".claude/session-reports/**"
----
-
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->
 
 

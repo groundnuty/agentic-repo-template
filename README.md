@@ -36,15 +36,15 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 
 | Profile | Plugins | Rules | Skills | Agents | Hooks | Templates |
 |---|---:|---:|---:|---:|---:|---:|
-| `info` | 8 | 10 | 1 | — | — | 4 |
-| `research` | 9 | 13 | 1 | — | — | 4 |
-| `paper` | 9 | 17 | 9 | 5 | 2 | 5 |
-| `paper-latex` | 9 | 21 | 11 | 5 | 3 | 5 |
-| `code` | 9 | 14 | 1 | — | — | 4 |
+| `info` | 8 | 9 | 1 | — | — | 4 |
+| `research` | 9 | 12 | 1 | — | — | 4 |
+| `paper` | 9 | 16 | 9 | 5 | 2 | 5 |
+| `paper-latex` | 9 | 20 | 11 | 5 | 3 | 5 |
+| `code` | 9 | 13 | 1 | — | — | 4 |
 
 ### What's common vs specific at a glance
 
-- **In all five profiles** (base + info): 8 plugins, 10 rules, 1 skill, 4 templates.
+- **In all five profiles** (base + info): 8 plugins, 9 rules, 1 skill, 4 templates.
 - **In four profiles** (`research` + `paper` + `paper-latex` + `code` — *not* `info`): 1 plugin (`context7`).
 - **In three profiles** (`research` + `paper` + `paper-latex`): 3 rules (`citation-discipline`, `reading-before-editing`, `pdf-processing`).
 - **In `paper` and `paper-latex`**: 4 rules (`humanize-prose`, `post-flight-verification`, `proofreading-protocol`, `cross-artifact-review`), 8 skills, 5 agents, 2 hooks, 1 template.
@@ -65,7 +65,7 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `elements-of-style@superpowers-marketplace` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `context7@external-plugins` | — | ✓ | ✓ | ✓ | ✓ |
 
-### Rules (25 unique)
+### Rules (24 unique)
 
 | Rule | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
@@ -78,7 +78,6 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `exploration-folder-protocol.md` — `explorations/` lifecycle | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `meta-governance.md` — template vs working project, 2-tier memory | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `session-logging.md` — three-trigger logging discipline | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `content-invariants.md` — numbered invariants for agents to cite | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `citation-discipline.md` — never cite from memory | — | ✓ | ✓ | ✓ | — |
 | `reading-before-editing.md` — full read before research edits | — | ✓ | ✓ | ✓ | — |
 | `pdf-processing.md` — safe large-PDF chunked workflow | — | ✓ | ✓ | ✓ | — |
