@@ -6,6 +6,57 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.14] — 2026-05-17
+
+Fix: repos initialized with the previous `failIfUnavailable: true` baseline crash on session start in Claude Code on the web. The web VM is itself a container, has no `bubblewrap`/`socat` pre-installed, and Ubuntu 24.04 AppArmor blocks unprivileged user namespaces — so the Linux sandbox can't initialize, and `failIfUnavailable: true` turns that into a hard session-start failure (per [Settings reference](https://code.claude.com/docs/en/settings#sandbox-settings): *"Exit with an error at startup if `sandbox.enabled` is true but the sandbox cannot start"*). Symptom: opening the repo on [claude.ai/code](https://claude.ai/code) produces a generic "error" and the session never starts.
+
+### What changed
+
+- **New `--cloud-compat` flag on `init.sh`.** Patches settings to be safe inside the web's nested-container sandbox. Patches applied:
+  1. Remove `sandbox.failIfUnavailable` — defaults to `false`, meaning Claude Code warns once and runs commands unsandboxed when the OS sandbox can't initialize. This is the right behavior on the web VM, which is already isolation.
+  2. Set `sandbox.enableWeakerNestedSandbox: true` — the documented escape hatch for unprivileged Docker / cloud-VM environments where bubblewrap can't create privileged namespaces.
+  3. Prune `~/.nix-profile`, `/nix`, `~/.cache/devbox`, `~/.local/share/devbox` from `sandbox.filesystem.allowWrite` — these paths don't exist on the cloud VM, and bubblewrap would fail to bind-mount them if it did run. `~/.claude/projects` is retained (D31).
+  4. Remove `context7@external-plugins` from `enabledPlugins` — orphan reference; no `external-plugins` marketplace is declared anywhere in base settings, so this entry has been a no-op (with a warning) on every install.
+- **Two operating modes** for the new flag:
+  - `./.claude/init.sh <profile> --cloud-compat` — fresh init that applies the profile chain and then the cloud patches. Use when creating a new repo that you intend to open on the web.
+  - `./.claude/init.sh --cloud-compat` (no profile) — patch-only mode for an already-initialized repo. Re-fetch `init.sh` from this release, drop it into `.claude/`, run with the flag, done. The original profile chain isn't re-applied, so user edits to rules/skills/CLAUDE.md are untouched.
+- **Stamp file gains `cloud_compat=<true|false>` line.** `/template-check` can now see whether a repo has been patched.
+
+### What did NOT change
+
+- **Default behavior is unchanged.** Without `--cloud-compat`, init.sh produces the same output as v0.1.13. `failIfUnavailable: true` is still the baseline for local-only repos that want a hard sandbox gate.
+- **No rules, skills, hooks, or plugins were touched** (except removing the orphan context7 reference, which never worked anyway).
+
+### Tests
+
+26 new assertions in `tests/test-init.sh`:
+
+- `research --cloud-compat`: exits 0, removes `failIfUnavailable`, sets `enableWeakerNestedSandbox: true`, prunes the four devbox/nix paths from `allowWrite`, retains `~/.claude/projects` (D31 guard), removes `context7@external-plugins`, plugin count is 8 not 9, stamp shows `cloud_compat=true`.
+- Negative: `research` without `--cloud-compat` preserves `failIfUnavailable`, does NOT add `enableWeakerNestedSandbox`, retains `/nix`, stamp shows `cloud_compat=false`.
+- Patch-only path: `init.sh --cloud-compat` on an already-initialized repo (where `profiles/` and the original `init.sh` are gone) applies all four patches, preserves the existing `profile=` line, flips `cloud_compat` to `true`.
+- Patch-only with no `settings.json` exits 4 with an explanatory error.
+- `--cloud-compat --dry-run` is a no-op (settings and stamp files unchanged).
+
+123 tests total, all green.
+
+### Migration
+
+- **New repos for cloud use:** `./.claude/init.sh research --cloud-compat` (or whichever profile).
+- **Existing repos crashing on the web:**
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/v0.1.14/.claude/init.sh -o .claude/init.sh
+  bash .claude/init.sh --cloud-compat
+  rm .claude/init.sh
+  ```
+  Commit the resulting `.claude/settings.json` and `.claude/.template-version` diff. Push. Re-open the session on the web.
+- **Local-only repos:** no action needed. Don't pass `--cloud-compat`.
+
+### Why not just delete `failIfUnavailable` from base settings?
+
+Considered. Rejected: users who explicitly run a local Linux sandbox WANT a hard failure when bubblewrap isn't installed — that's literally what the setting is for (managed deployments where sandboxing is a security gate). The flag lets the user pick per-repo whether they need the gate or whether they want cloud compatibility. Long-term, if cloud usage dominates, we'll revisit the default.
+
+---
+
 ## [v0.1.13] — 2026-04-27
 
 Fix: 7 rules adopted from pedrohcgs/claude-code-my-workflow had `paths:` frontmatter referencing files/dirs (`Slides/`, `Quarto/`, `master_supporting_docs/`, `Preambles/`, R-stack subdirs, three skills we don't ship) that don't exist in a generic user repo. Per [Claude Code's memory docs](https://code.claude.com/docs/en/memory), path-scoped rules only load when files matching the glob are accessed — so these rules were silently dead in every repo initialized from this template.
