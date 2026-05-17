@@ -257,6 +257,39 @@ sed -i '' "s/^version=.*/version=v0.1.9/" .claude/.template-version   # macOS
 
 An automated `/template-upgrade` command that handles the diff/merge is tracked for v0.2.x; for now, manual review is the safer default.
 
+### Using this repo with Claude Code on the web
+
+The base `settings.json` ships `sandbox.failIfUnavailable: true`, which is correct for local Linux/macOS but causes a hard session-start failure inside Claude Code on the web's nested-container sandbox (no `bubblewrap`/`socat`, AppArmor blocks unprivileged user namespaces, no privileged namespaces in nested containers).
+
+If you intend to open a repo from this template in [claude.ai/code](https://claude.ai/code), pass `--cloud-compat` at init time:
+
+```bash
+./.claude/init.sh research --cloud-compat
+```
+
+For an **existing repo** (where `init.sh` already self-deleted), patch it without re-running the profile chain:
+
+```bash
+# Re-fetch init.sh from the current release.
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/v0.1.14/.claude/init.sh -o .claude/init.sh
+
+# Apply cloud patches only (preserves your rules/skills/CLAUDE.md edits).
+bash .claude/init.sh --cloud-compat
+
+# init.sh self-deletes after the patch run.
+git add .claude/settings.json .claude/.template-version
+git commit -m "fix: cloud-compat patches for Claude Code on the web (v0.1.14)"
+```
+
+What `--cloud-compat` does:
+
+- Removes `sandbox.failIfUnavailable` (defaults to `false`: Claude Code warns once and runs commands unsandboxed when the OS sandbox is unavailable — fine because the cloud VM is already isolation).
+- Sets `sandbox.enableWeakerNestedSandbox: true` (the documented escape hatch for nested Docker / cloud VMs).
+- Prunes `~/.nix-profile`, `/nix`, `~/.cache/devbox`, `~/.local/share/devbox` from `sandbox.filesystem.allowWrite` (paths that don't exist on the cloud VM; `~/.claude/projects` is retained for auto-memory).
+- Removes the orphan `context7@external-plugins` entry from `enabledPlugins` (no matching marketplace was ever declared in base settings; it was a no-op with a warning on every load).
+
+If you only ever use this repo locally, ignore the flag — the default behavior is unchanged.
+
 ---
 
 ## Updating the template or debating decisions

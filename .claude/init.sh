@@ -2,21 +2,29 @@
 #
 # .claude/init.sh — apply a profile overlay to the base template.
 #
-# Usage: ./.claude/init.sh <info|research|paper|paper-latex|code> [--keep-profiles] [--dry-run]
+# Usage:
+#   ./.claude/init.sh <info|research|paper|paper-latex|code> [--cloud-compat] [--keep-profiles] [--dry-run]
+#   ./.claude/init.sh --cloud-compat                                           [--dry-run]
 #
 # Deep-merges profiles/<profile>/settings.overlay.json into .claude/settings.json,
 # copies rule files and skill dirs, appends CLAUDE.append.md to .claude/CLAUDE.md,
 # merges skills.manifest.json entries, then removes profiles/ and init.sh.
+#
+# With --cloud-compat (no profile), runs in patch-only mode against an already-
+# initialized .claude/settings.json — useful for upgrading existing repos to be
+# compatible with Claude Code on the web's nested sandbox.
 
 set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.13"
+TEMPLATE_VERSION="v0.1.14"
 
 usage() {
   cat <<EOF
-Usage: ./.claude/init.sh <info|research|paper|paper-latex|code> [--keep-profiles] [--dry-run]
+Usage:
+  ./.claude/init.sh <info|research|paper|paper-latex|code> [--cloud-compat] [--keep-profiles] [--dry-run]
+  ./.claude/init.sh --cloud-compat [--dry-run]
 
 Applies a profile overlay to the base .claude/ tree.
 
@@ -29,6 +37,14 @@ Profiles:
   code         Code-centric work — Makefile/devbox/testing conventions.
 
 Options:
+  --cloud-compat   Patch settings for compatibility with Claude Code on the web's
+                   nested-container sandbox. Drops sandbox.failIfUnavailable, sets
+                   sandbox.enableWeakerNestedSandbox=true, prunes non-existent
+                   devbox/nix paths from sandbox.filesystem.allowWrite, and removes
+                   the orphan context7@external-plugins entry. When given without
+                   a profile argument, runs in patch-only mode against an already-
+                   initialized .claude/settings.json (use this to upgrade an
+                   existing repo without rerunning the profile chain).
   --keep-profiles  Do not delete .claude/profiles/ and this script after apply.
   --dry-run        Print what would be done without mutating files.
 EOF
@@ -155,13 +171,61 @@ cleanup_template_metadata() {
 stamp_template_version() {
   # Record which template version/profile was applied so /template-check can
   # compare against the latest GitHub release later.
-  local applied_at profile="$1"
+  local applied_at profile="$1" cloud_compat_val="${2:-false}"
   applied_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   cat > .claude/.template-version <<EOF
 version=${TEMPLATE_VERSION}
 profile=${profile}
 applied_at=${applied_at}
+cloud_compat=${cloud_compat_val}
 EOF
+}
+
+apply_cloud_compat() {
+  # Make settings.json safe to load inside Claude Code on the web's nested
+  # container. The web VM doesn't ship bubblewrap/socat and AppArmor on
+  # Ubuntu 24.04 blocks unprivileged user namespaces, so an enabled sandbox
+  # with failIfUnavailable=true aborts session startup. Patches applied:
+  #   1. Remove sandbox.failIfUnavailable (defaults to false: warn + run
+  #      commands unsandboxed when the OS sandbox can't initialize).
+  #   2. Set sandbox.enableWeakerNestedSandbox=true so the Linux sandbox
+  #      can run without privileged namespaces if a setup script does
+  #      install bwrap+socat.
+  #   3. Strip ~/.nix-profile, /nix, ~/.cache/devbox, ~/.local/share/devbox
+  #      from sandbox.filesystem.allowWrite — these paths don't exist on
+  #      the cloud VM and the bind-mount would fail if the sandbox ran.
+  #   4. Remove context7@external-plugins from enabledPlugins (orphan: no
+  #      "external-plugins" marketplace is declared anywhere in base).
+  local settings=".claude/settings.json"
+  [ -f "$settings" ] || { echo "error: $settings missing" >&2; exit 4; }
+  local tmp; tmp=$(mktemp)
+  "$JQ" '
+    (if (.sandbox? != null)
+      then .sandbox |= del(.failIfUnavailable)
+      else .
+      end)
+    |
+    (if (.sandbox? != null)
+      then .sandbox.enableWeakerNestedSandbox = true
+      else .
+      end)
+    |
+    (if ((.sandbox.filesystem.allowWrite? // null) | type) == "array"
+      then .sandbox.filesystem.allowWrite |= map(select(
+        . != "/nix" and
+        . != "~/.nix-profile" and
+        . != "~/.cache/devbox" and
+        . != "~/.local/share/devbox"
+      ))
+      else .
+      end)
+    |
+    (if ((.enabledPlugins? // null) | type) == "object"
+      then .enabledPlugins |= del(."context7@external-plugins")
+      else .
+      end)
+  ' "$settings" > "$tmp"
+  mv "$tmp" "$settings"
 }
 
 self_delete() {
@@ -173,11 +237,13 @@ main() {
   local profile=""
   local keep_profiles=0
   local dry_run=0
+  local cloud_compat=0
 
   while [ $# -gt 0 ]; do
     case "$1" in
       --keep-profiles) keep_profiles=1; shift ;;
       --dry-run)       dry_run=1; shift ;;
+      --cloud-compat)  cloud_compat=1; shift ;;
       -h|--help)       usage; exit 0 ;;
       -*)              echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
       *)
@@ -189,6 +255,51 @@ main() {
         ;;
     esac
   done
+
+  # Patch-only mode: --cloud-compat alone, applied to an already-initialized
+  # repo (profiles/ is typically gone — init.sh self-deleted after the
+  # original profile apply). Skip the profile chain entirely.
+  if [ -z "$profile" ] && [ "$cloud_compat" = "1" ]; then
+    if [ ! -f .claude/settings.json ]; then
+      echo "error: .claude/settings.json missing. Nothing to patch." >&2
+      exit 4
+    fi
+    if ! command -v "$JQ" >/dev/null 2>&1; then
+      echo "error: jq not found on PATH (looked for '$JQ'). Install jq and re-run." >&2
+      exit 3
+    fi
+    if [ "$dry_run" = "1" ]; then
+      echo "[dry-run] would apply cloud-compat patches to .claude/settings.json:"
+      echo "[dry-run]   - remove sandbox.failIfUnavailable"
+      echo "[dry-run]   - set sandbox.enableWeakerNestedSandbox = true"
+      echo "[dry-run]   - prune devbox/nix paths from sandbox.filesystem.allowWrite"
+      echo "[dry-run]   - remove context7@external-plugins from enabledPlugins"
+      exit 0
+    fi
+    apply_cloud_compat
+    # Preserve any existing profile= line; only update/add cloud_compat=.
+    if [ -f .claude/.template-version ] && grep -q '^cloud_compat=' .claude/.template-version; then
+      tmp=$(mktemp)
+      sed 's/^cloud_compat=.*/cloud_compat=true/' .claude/.template-version > "$tmp"
+      mv "$tmp" .claude/.template-version
+    elif [ -f .claude/.template-version ]; then
+      echo "cloud_compat=true" >> .claude/.template-version
+    else
+      cat > .claude/.template-version <<EOF
+version=${TEMPLATE_VERSION}
+profile=unknown
+applied_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+cloud_compat=true
+EOF
+    fi
+    echo
+    echo "Cloud-compat patches applied to existing .claude/settings.json:"
+    echo "  - sandbox.failIfUnavailable removed (defaults to false: warn + run unsandboxed)"
+    echo "  - sandbox.enableWeakerNestedSandbox = true"
+    echo "  - devbox / nix paths pruned from sandbox.filesystem.allowWrite"
+    echo "  - context7@external-plugins removed from enabledPlugins"
+    exit 0
+  fi
 
   if [ -z "$profile" ]; then
     echo "error: profile argument required" >&2
@@ -231,9 +342,21 @@ main() {
     merge_skills_manifest "$profile_dir"
   done
 
+  if [ "$dry_run" = "1" ] && [ "$cloud_compat" = "1" ]; then
+    echo "[dry-run] would apply cloud-compat patches to .claude/settings.json after profile merge"
+  fi
+
+  if [ "$dry_run" = "0" ] && [ "$cloud_compat" = "1" ]; then
+    apply_cloud_compat
+  fi
+
   if [ "$dry_run" = "0" ]; then
     cleanup_template_metadata
-    stamp_template_version "$profile"
+    if [ "$cloud_compat" = "1" ]; then
+      stamp_template_version "$profile" true
+    else
+      stamp_template_version "$profile" false
+    fi
   fi
 
   if [ "$dry_run" = "0" ] && [ "$keep_profiles" = "0" ]; then
@@ -241,8 +364,10 @@ main() {
   fi
 
   if [ "$dry_run" = "0" ]; then
+    local cc_suffix=""
+    [ "$cloud_compat" = "1" ] && cc_suffix=" (cloud-compat applied)"
     echo
-    echo "Profile \"$profile\" applied."
+    echo "Profile \"$profile\" applied${cc_suffix}."
     echo "  Chain: $chain"
     echo "  Plugins enabled: $("$JQ" -r '.enabledPlugins | length' .claude/settings.json)"
     echo "  Rules present:   $(find .claude/rules -name '*.md' -type f | wc -l | tr -d ' ')"
