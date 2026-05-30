@@ -6,6 +6,54 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.15] — 2026-05-31
+
+**⚠ BREAKING** for managed-deployment users who relied on the default `sandbox.failIfUnavailable: true`. Everyone else: improvement, no action needed.
+
+Fix the chicken-and-egg gap that v0.1.14 missed: opening a fresh "Use this template" repo on [claude.ai/code](https://claude.ai/code) before running `init.sh` aborted session-start because the base settings shipped `failIfUnavailable: true`. v0.1.14's `--cloud-compat` flag couldn't help — the flag only takes effect after `init.sh` runs, and the un-inited template can't start a session.
+
+### What changed
+
+- **Base `settings.json` is now cloud-safe.**
+  - `sandbox.failIfUnavailable` removed (defaults to `false`: warn + run unsandboxed when OS sandbox is unavailable).
+  - `sandbox.enableWeakerNestedSandbox: true` added (no-op for normal local sandbox; lets the sandbox initialize on cloud/nested-container VMs).
+- **New `--strict-sandbox` flag.** Opt-in to the strict gate that v0.1.14 had as default. For managed deployments where sandboxing is a hard security requirement. Adds `sandbox.failIfUnavailable: true` and stamps `strict_sandbox=true`.
+- **`--cloud-compat` is now deprecated.** Still works — prints a deprecation warning on stderr, still prunes devbox/nix paths from `allowWrite` (cosmetic), still stamps `cloud_compat=true`. Removed in a future v0.2.x major.
+- **`context7` plugin marketplace name corrected** in `research` + `code` overlays. Was `context7@external-plugins` (orphan — no such marketplace declared), now `context7@claude-plugins-official` (matches the marketplace already declared in base). Context7 now **actually loads** in research / paper / paper-latex / code profiles. v0.1.14 D35 claimed the orphan was "removed" but only fixed base — profile overlays kept re-introducing it. This release closes that loop.
+- **Stamp file format.** Adds `strict_sandbox=<true|false>` line. `cloud_compat=` line preserved for backward compat.
+
+### Sandbox modes summary
+
+| Mode | Flag | `sandbox.failIfUnavailable` | Use case |
+|---|---|---|---|
+| Default (v0.1.15+) | (none) | absent → defaults to `false` | Works on Claude Code Web + local. The common case. |
+| Strict | `--strict-sandbox` | `true` | Managed deployments where sandbox is a hard gate. |
+| Cloud-compat | `--cloud-compat` (deprecated) | absent (same as default) | Backward compat. Use the default instead. |
+
+### Migration
+
+| Existing repo state | What to do |
+|---|---|
+| v0.1.14 with `--cloud-compat` already applied | No action. Optionally bump stamp `version=v0.1.14` → `v0.1.15`. |
+| v0.1.14 (or earlier) without `--cloud-compat`, **and Claude Code Web fails to open it** | Open it locally (where strict sandbox isn't a problem), then either re-run `init.sh <profile>` from a fresh v0.1.15 clone (clean migration) or hand-edit `.claude/settings.json` to remove `sandbox.failIfUnavailable` and add `"enableWeakerNestedSandbox": true`. |
+| Want the strict gate (managed deployment) | Pass `--strict-sandbox` at init time. |
+| Already using `context7` | Re-init or edit `.claude/settings.json`: change `context7@external-plugins` → `context7@claude-plugins-official`. The plugin will start loading instead of silently no-op-ing. |
+
+### Tests
+
+- 20 new assertions in `tests/test-init.sh`: base settings has no `failIfUnavailable`, base has `enableWeakerNestedSandbox: true`, profile overlays use the correct context7 marketplace name, `--strict-sandbox` sets `failIfUnavailable: true` and stamps correctly, `--cloud-compat` still works but prints deprecation warning, post-init context7 lands at `@claude-plugins-official` (not the orphan).
+- **117 tests total, all green.**
+
+### Why this is breaking — but only for one group
+
+Managed deployments that relied on the default `failIfUnavailable: true` as a hard sandbox gate now need to pass `--strict-sandbox` explicitly. One-flag change in their deployment scripts. All other users: unaffected or strictly better.
+
+### Honest disclosure
+
+v0.1.14's `--cloud-compat` was a partial fix: it solved the case "I have shell access, can run `init.sh`" but missed "I created the repo from template on GitHub and opened it on the web". The chicken-and-egg was that the un-inited template's strict-by-default sandbox aborted session-start before any agent could run `init.sh`. v0.1.15 fixes the root cause by inverting the default. Discovered when a user hit it on `agentic-music-composer`.
+
+---
+
 ## [v0.1.14] — 2026-05-17
 
 Fix: repos initialized with the previous `failIfUnavailable: true` baseline crash on session start in Claude Code on the web. The web VM is itself a container, has no `bubblewrap`/`socat` pre-installed, and Ubuntu 24.04 AppArmor blocks unprivileged user namespaces — so the Linux sandbox can't initialize, and `failIfUnavailable: true` turns that into a hard session-start failure (per [Settings reference](https://code.claude.com/docs/en/settings#sandbox-settings): *"Exit with an error at startup if `sandbox.enabled` is true but the sandbox cannot start"*). Symptom: opening the repo on [claude.ai/code](https://claude.ai/code) produces a generic "error" and the session never starts.

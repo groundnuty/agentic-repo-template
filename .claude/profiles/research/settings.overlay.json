@@ -1,5 +1,5 @@
 {
   "enabledPlugins": {
-    "context7@external-plugins": true
+    "context7@claude-plugins-official": true
   }
 }

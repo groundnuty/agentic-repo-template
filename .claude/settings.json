@@ -90,7 +90,6 @@
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": true,
-    "failIfUnavailable": true,
     "excludedCommands": [
       "ssh:*",
       "scp:*",
@@ -132,7 +131,8 @@
         "~/.ssh/id_*",
         "~/.ssh/*.pem"
       ]
-    }
+    },
+    "enableWeakerNestedSandbox": true
   },
   "marketplaces": {
     "claude-plugins-official": {

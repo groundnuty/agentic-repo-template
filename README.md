@@ -63,7 +63,7 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `claude-code-setup@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `feature-dev@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `elements-of-style@superpowers-marketplace` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `context7@external-plugins` | — | ✓ | ✓ | ✓ | ✓ |
+| `context7@claude-plugins-official` | — | ✓ | ✓ | ✓ | ✓ |
 
 ### Rules (24 unique)
 
@@ -257,38 +257,32 @@ sed -i '' "s/^version=.*/version=v0.1.9/" .claude/.template-version   # macOS
 
 An automated `/template-upgrade` command that handles the diff/merge is tracked for v0.2.x; for now, manual review is the safer default.
 
-### Using this repo with Claude Code on the web
+### Sandbox modes (v0.1.15+)
 
-The base `settings.json` ships `sandbox.failIfUnavailable: true`, which is correct for local Linux/macOS but causes a hard session-start failure inside Claude Code on the web's nested-container sandbox (no `bubblewrap`/`socat`, AppArmor blocks unprivileged user namespaces, no privileged namespaces in nested containers).
+The base `settings.json` is **cloud-safe by default** as of v0.1.15. Repos created from this template open cleanly in [claude.ai/code](https://claude.ai/code)'s nested-container sandbox without any flag, and run normally on local Linux/macOS too. No `--cloud-compat` needed for new repos.
 
-If you intend to open a repo from this template in [claude.ai/code](https://claude.ai/code), pass `--cloud-compat` at init time:
-
-```bash
-./.claude/init.sh research --cloud-compat
-```
-
-For an **existing repo** (where `init.sh` already self-deleted), patch it without re-running the profile chain:
+If you need the strict managed-deployment behavior (Claude Code aborts session-start when the OS sandbox can't initialize), pass `--strict-sandbox` at init time:
 
 ```bash
-# Re-fetch init.sh from the current release.
-curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/v0.1.14/.claude/init.sh -o .claude/init.sh
-
-# Apply cloud patches only (preserves your rules/skills/CLAUDE.md edits).
-bash .claude/init.sh --cloud-compat
-
-# init.sh self-deletes after the patch run.
-git add .claude/settings.json .claude/.template-version
-git commit -m "fix: cloud-compat patches for Claude Code on the web (v0.1.14)"
+./.claude/init.sh code --strict-sandbox    # opts into sandbox.failIfUnavailable=true
 ```
 
-What `--cloud-compat` does:
+**What changed in v0.1.15** vs. v0.1.14:
 
-- Removes `sandbox.failIfUnavailable` (defaults to `false`: Claude Code warns once and runs commands unsandboxed when the OS sandbox is unavailable — fine because the cloud VM is already isolation).
-- Sets `sandbox.enableWeakerNestedSandbox: true` (the documented escape hatch for nested Docker / cloud VMs).
-- Prunes `~/.nix-profile`, `/nix`, `~/.cache/devbox`, `~/.local/share/devbox` from `sandbox.filesystem.allowWrite` (paths that don't exist on the cloud VM; `~/.claude/projects` is retained for auto-memory).
-- Removes the orphan `context7@external-plugins` entry from `enabledPlugins` (no matching marketplace was ever declared in base settings; it was a no-op with a warning on every load).
+- `sandbox.failIfUnavailable` is no longer in base settings (defaults to `false`: warn + run unsandboxed when OS sandbox isn't available).
+- `sandbox.enableWeakerNestedSandbox: true` is now in base (no-op for normal local sandbox; lets the sandbox initialize on cloud/nested-container VMs).
+- `--cloud-compat` is **deprecated** (still works, prints a warning) — it's a no-op for the failIfUnavailable patch since the base is already cloud-safe. It still prunes devbox/nix paths from `allowWrite`, which is cosmetic on cloud VMs (those paths just don't exist) and harmless on local.
 
-If you only ever use this repo locally, ignore the flag — the default behavior is unchanged.
+**Migrating an existing repo to v0.1.15:**
+
+- **From v0.1.14 with `--cloud-compat` already applied:** no action needed; just bump the stamp's `version=` to `v0.1.15`.
+- **From v0.1.14 or earlier without `--cloud-compat`:** open the repo in Claude Code locally (where the strict sandbox isn't a problem) and apply the patches by hand or via:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/v0.1.15/.claude/init.sh -o /tmp/init-v15.sh
+  bash /tmp/init-v15.sh --cloud-compat   # still works in v0.1.15 (deprecated alias)
+  ```
+
+Why the inversion: v0.1.14's `--cloud-compat` flag worked for users with shell access who could run `init.sh`. But it broke the natural Web-first workflow — "Use this template" → open the new repo on claude.ai/code → ask the agent to init it. The un-inited template's `failIfUnavailable: true` aborted session-start before any agent came online. v0.1.15 fixes that root cause: the common case (works everywhere) is the default; strict sandboxing is the explicit opt-in.
 
 ---
 

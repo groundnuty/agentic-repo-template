@@ -3,8 +3,8 @@
 # .claude/init.sh — apply a profile overlay to the base template.
 #
 # Usage:
-#   ./.claude/init.sh <info|research|paper|paper-latex|code> [--cloud-compat] [--keep-profiles] [--dry-run]
-#   ./.claude/init.sh --cloud-compat                                           [--dry-run]
+#   ./.claude/init.sh <info|research|paper|paper-latex|code> [--strict-sandbox] [--keep-profiles] [--dry-run]
+#   ./.claude/init.sh --cloud-compat                                            [--dry-run]   (deprecated)
 #
 # Deep-merges profiles/<profile>/settings.overlay.json into .claude/settings.json,
 # copies rule files and skill dirs, appends CLAUDE.append.md to .claude/CLAUDE.md,
@@ -18,13 +18,13 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.14"
+TEMPLATE_VERSION="v0.1.15"
 
 usage() {
   cat <<EOF
 Usage:
-  ./.claude/init.sh <info|research|paper|paper-latex|code> [--cloud-compat] [--keep-profiles] [--dry-run]
-  ./.claude/init.sh --cloud-compat [--dry-run]
+  ./.claude/init.sh <info|research|paper|paper-latex|code> [--strict-sandbox] [--keep-profiles] [--dry-run]
+  ./.claude/init.sh --cloud-compat [--dry-run]   (deprecated; see below)
 
 Applies a profile overlay to the base .claude/ tree.
 
@@ -36,15 +36,21 @@ Profiles:
   paper-latex  Paper + LaTeX / BibTeX / TikZ layer. Apply when compiling with LaTeX.
   code         Code-centric work — Makefile/devbox/testing conventions.
 
-Options:
-  --cloud-compat   Patch settings for compatibility with Claude Code on the web's
-                   nested-container sandbox. Drops sandbox.failIfUnavailable, sets
-                   sandbox.enableWeakerNestedSandbox=true, prunes non-existent
-                   devbox/nix paths from sandbox.filesystem.allowWrite, and removes
-                   the orphan context7@external-plugins entry. When given without
-                   a profile argument, runs in patch-only mode against an already-
-                   initialized .claude/settings.json (use this to upgrade an
-                   existing repo without rerunning the profile chain).
+Sandbox modes:
+  Default (v0.1.15+):  cloud-safe. No sandbox.failIfUnavailable. Settings load
+                       successfully on Claude Code on the web's nested-container
+                       VM as well as locally.
+  --strict-sandbox:    add sandbox.failIfUnavailable=true so Claude Code aborts
+                       session-start when the OS sandbox cannot initialize. For
+                       managed deployments where sandboxing is a security gate.
+
+Other options:
+  --cloud-compat   DEPRECATED in v0.1.15+. Was the v0.1.14 workaround for the
+                   web sandbox. Base settings are now cloud-safe by default, so
+                   this flag is a no-op for the failIfUnavailable patch. Still
+                   prunes devbox/nix paths from sandbox.filesystem.allowWrite
+                   (cosmetic; non-existent paths are inert anyway). Prints a
+                   deprecation warning.
   --keep-profiles  Do not delete .claude/profiles/ and this script after apply.
   --dry-run        Print what would be done without mutating files.
 EOF
@@ -171,13 +177,19 @@ cleanup_template_metadata() {
 stamp_template_version() {
   # Record which template version/profile was applied so /template-check can
   # compare against the latest GitHub release later.
-  local applied_at profile="$1" cloud_compat_val="${2:-false}"
+  local applied_at profile="$1" cloud_compat_val="${2:-false}" strict_sandbox_val="${3:-0}"
+  # Normalize strict_sandbox: caller may pass "0"/"1" (from arg-parse) or "true"/"false".
+  case "$strict_sandbox_val" in
+    1|true) strict_sandbox_val=true ;;
+    *)      strict_sandbox_val=false ;;
+  esac
   applied_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   cat > .claude/.template-version <<EOF
 version=${TEMPLATE_VERSION}
 profile=${profile}
 applied_at=${applied_at}
 cloud_compat=${cloud_compat_val}
+strict_sandbox=${strict_sandbox_val}
 EOF
 }
 
@@ -228,6 +240,22 @@ apply_cloud_compat() {
   mv "$tmp" "$settings"
 }
 
+apply_strict_sandbox() {
+  # Opt-in hard-sandbox gate. Sets sandbox.failIfUnavailable = true so Claude
+  # Code aborts session-start when the OS sandbox cannot initialize. Use for
+  # managed deployments where sandboxing is a hard security requirement.
+  local settings=".claude/settings.json"
+  [ -f "$settings" ] || { echo "error: $settings missing" >&2; exit 4; }
+  local tmp; tmp=$(mktemp)
+  "$JQ" '
+    (if (.sandbox? != null)
+      then .sandbox.failIfUnavailable = true
+      else .sandbox = { "failIfUnavailable": true }
+      end)
+  ' "$settings" > "$tmp"
+  mv "$tmp" "$settings"
+}
+
 self_delete() {
   rm -rf .claude/profiles
   rm -f  .claude/init.sh
@@ -238,14 +266,19 @@ main() {
   local keep_profiles=0
   local dry_run=0
   local cloud_compat=0
+  local strict_sandbox=0
 
   while [ $# -gt 0 ]; do
     case "$1" in
-      --keep-profiles) keep_profiles=1; shift ;;
-      --dry-run)       dry_run=1; shift ;;
-      --cloud-compat)  cloud_compat=1; shift ;;
-      -h|--help)       usage; exit 0 ;;
-      -*)              echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+      --keep-profiles)  keep_profiles=1; shift ;;
+      --dry-run)        dry_run=1; shift ;;
+      --strict-sandbox) strict_sandbox=1; shift ;;
+      --cloud-compat)
+        cloud_compat=1
+        echo "warning: --cloud-compat is deprecated in v0.1.15+. Base settings are now cloud-safe by default; this flag is a no-op for failIfUnavailable removal. Still prunes devbox/nix paths from allowWrite (cosmetic)." >&2
+        shift ;;
+      -h|--help)        usage; exit 0 ;;
+      -*)               echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
       *)
         if [ -z "$profile" ]; then
           profile="$1"; shift
@@ -290,6 +323,7 @@ version=${TEMPLATE_VERSION}
 profile=unknown
 applied_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 cloud_compat=true
+strict_sandbox=false
 EOF
     fi
     echo
@@ -345,17 +379,23 @@ EOF
   if [ "$dry_run" = "1" ] && [ "$cloud_compat" = "1" ]; then
     echo "[dry-run] would apply cloud-compat patches to .claude/settings.json after profile merge"
   fi
+  if [ "$dry_run" = "1" ] && [ "$strict_sandbox" = "1" ]; then
+    echo "[dry-run] would apply --strict-sandbox patch (set sandbox.failIfUnavailable = true)"
+  fi
 
   if [ "$dry_run" = "0" ] && [ "$cloud_compat" = "1" ]; then
     apply_cloud_compat
+  fi
+  if [ "$dry_run" = "0" ] && [ "$strict_sandbox" = "1" ]; then
+    apply_strict_sandbox
   fi
 
   if [ "$dry_run" = "0" ]; then
     cleanup_template_metadata
     if [ "$cloud_compat" = "1" ]; then
-      stamp_template_version "$profile" true
+      stamp_template_version "$profile" true "$strict_sandbox"
     else
-      stamp_template_version "$profile" false
+      stamp_template_version "$profile" false "$strict_sandbox"
     fi
   fi
 
@@ -365,7 +405,8 @@ EOF
 
   if [ "$dry_run" = "0" ]; then
     local cc_suffix=""
-    [ "$cloud_compat" = "1" ] && cc_suffix=" (cloud-compat applied)"
+    [ "$cloud_compat" = "1" ] && cc_suffix="$cc_suffix (cloud-compat applied, deprecated)"
+    [ "$strict_sandbox" = "1" ] && cc_suffix="$cc_suffix (strict-sandbox gate enabled)"
     echo
     echo "Profile \"$profile\" applied${cc_suffix}."
     echo "  Chain: $chain"
