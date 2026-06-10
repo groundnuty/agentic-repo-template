@@ -6,6 +6,45 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.1.16] — 2026-06-10
+
+Fix: every new Claude Code session on a template-initialized repo printed a `/doctor` warning that `permissions.allow["mcp__*"]` was rejected. Wildcarding the entire MCP namespace in allow rules is intentionally disallowed by Claude Code (security: prevents prompt-injection-via-MCP-response from auto-executing tools from arbitrary unknown servers). Allow rules must name a literal server prefix; wildcards are only legal in the tool position after `mcp__<server>__`.
+
+### What changed
+
+- **Dropped `"mcp__*"`** from base `.claude/settings.json` `permissions.allow`. Claude Code was already skipping the invalid rule — the only functional change is the `/doctor` warning goes away.
+- **Added enumerated allow entries** for all claude.ai-hosted MCP connectors observed in use (15 servers): `mcp__claude_ai_{Gmail,PubMed,bioRxiv,Scholar_Gateway,Asana,Atlassian,Box,Canva,Consensus,Figma,HubSpot,Intercom,Linear,Notion,monday_com}__*`. These auto-allow without prompt — the connectors are user-account-controlled (you enable them in claude.ai settings), so trusting their tools matches user intent.
+- **Added the context7 plugin MCP**: `mcp__plugin_context7_context7__*`. Matches `enabledPlugins["context7@claude-plugins-official"]` (which we ship in research / paper / paper-latex / code profiles since v0.1.15).
+- **Added two built-in MCP introspection tools** as bare names: `ListMcpResourcesTool`, `ReadMcpResourceTool`. Read-only, safe.
+
+### What stays unchanged
+
+- **Custom and third-party MCP servers** are NOT pre-allowed. If you use them, add per-server entries to your gitignored `.claude/settings.local.json`:
+  ```json
+  {
+    "permissions": {
+      "allow": [
+        "mcp__my_custom_server__*"
+      ]
+    }
+  }
+  ```
+- **The `mcp__<server-wildcard>__*` shape is rejected** by Claude Code. You can't say "any MCP server" — must enumerate.
+
+### Migration
+
+Existing v0.1.x repos: edit `.claude/settings.json` and remove the line `"mcp__*",` from `permissions.allow`. Optionally add the enumerated list above. Or re-init from v0.1.16.
+
+### Tests
+
+10 new assertions in `tests/test-init.sh`: base has no `mcp__*`, no MCP allow entry wildcards the server name (regex guard), 6 spot-check connector entries present, both List/ReadMcpResourceTool present, plugin context7 MCP present. **154 tests total, all green.**
+
+### Why Path A (enumerate) and not Path B (`--permission-mode bypassPermissions`)
+
+Bypass-mode disables all permission gates including the deny list. D2 (32-repo survey + design) rejected that posture. Enumeration costs ~18 lines of allow list and stays within the security model.
+
+---
+
 ## [v0.1.15] — 2026-05-31
 
 **⚠ BREAKING** for managed-deployment users who relied on the default `sandbox.failIfUnavailable: true`. Everyone else: improvement, no action needed.

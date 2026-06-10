@@ -38,3 +38,28 @@ Claude Opus 4.7 behaves differently from earlier models in ways that matter for 
 Our `Bash(...)` deny patterns (sudo, `git push --force*`, `docker push *`, `rm -rf /`, `git commit --no-verify`) now match commands wrapped in common exec wrappers as of Claude Code v2.1.113: `env`, `sudo`, `watch`, `ionice`, `setsid`, and similar. So `env sudo rm -rf /` or `watch sudo docker push ...` are caught by our existing denies without us needing to enumerate every wrapped variant.
 
 This is a Claude Code-level behavior change, not a template-level rule change — no action needed on your part, but worth knowing the surface area is wider than the literal patterns suggest.
+
+## MCP server permissions (v0.1.16+)
+
+Claude Code rejects `mcp__*` wildcards in `permissions.allow` (security: prevents arbitrary unknown MCP servers from auto-executing tools). Allow rules must name a literal server: `mcp__<server>__<tool>` or `mcp__<server>__*` only.
+
+The base template pre-allows:
+
+- **15 claude.ai-hosted connector servers** — every connector you enable in your claude.ai account settings (`mcp__claude_ai_Gmail__*`, `mcp__claude_ai_PubMed__*`, `mcp__claude_ai_Linear__*`, etc.).
+- **The context7 plugin MCP** (`mcp__plugin_context7_context7__*`) since we ship `context7@claude-plugins-official` in research/paper/paper-latex/code profiles.
+- **Two built-in MCP introspection tools** (`ListMcpResourcesTool`, `ReadMcpResourceTool`).
+
+For **custom or third-party plugin MCPs** that aren't on this list, add per-server entries to your gitignored `.claude/settings.local.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "mcp__my_custom_server__*",
+      "mcp__third_party_plugin_xyz__*"
+    ]
+  }
+}
+```
+
+If a new claude.ai connector ships and isn't in our base list, you can either add it to `settings.local.json` immediately or wait for the next template release. Until then, the first tool call from that connector will prompt — then Claude Code remembers your choice for the rest of the session.
