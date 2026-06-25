@@ -45,6 +45,43 @@ Bypass-mode disables all permission gates including the deny list. D2 (32-repo s
 
 ---
 
+## [v0.1.17] — 2026-06-25
+
+New rule: standardized knowledge-work directory structure for research-tier profiles.
+
+### What changed
+
+- **`research/rules/knowledge-work-structure.md`** (new) — ships in `research`, `paper`, and `paper-latex` (inherited via the research chain). Encodes a standing convention for organizing knowledge work into top-level directories:
+  - `research/` — research output (yours, subagents', workflows'); subdirs when justified.
+  - `papers/` — research papers you download; maintain `papers/INDEX.md` (filename, title, authors, year/venue, DOI/URL, one-line relevance) so the collection stays navigable.
+  - `input/` — raw documents the user provides.
+  - `insights/` — conclusions formed jointly with the user.
+  - `deliverables/` — documents produced for the user or external people.
+  - `questions/` — open questions (esp. multi-expert projects), kept as living documents with answers updated as work progresses.
+- **Lazy creation** — directories are made the first time they're needed, not scaffolded empty at init. No `init.sh` behavior change; the rule loads every session (no `paths:` frontmatter) for research-tier profiles.
+
+### Why
+
+This convention was a prompt the template author re-typed at the start of every knowledge-work repo. Baking it into the `research` profile makes it a default instead of a manual first step.
+
+### Post-init rule counts
+
+| Profile | v0.1.16 | v0.1.17 |
+|---|---:|---:|
+| `info` | 9 | 9 |
+| `research` | 12 | 13 |
+| `paper` | 16 | 17 |
+| `paper-latex` | 20 | 21 |
+| `code` | 13 | 13 |
+
+`info` and `code` are unaffected — knowledge-work structure is research-tier only. (v0.1.16 was the MCP permission-allow-list fix — see its entry above; it did not change rule counts.)
+
+### Tests
+
+5 new assertions (one per profile in the e2e loop): rule ships in research / paper / paper-latex, and is absent from info / code. 159 tests total, all green.
+
+---
+
 ## [v0.1.15] — 2026-05-31
 
 **⚠ BREAKING** for managed-deployment users who relied on the default `sandbox.failIfUnavailable: true`. Everyone else: improvement, no action needed.

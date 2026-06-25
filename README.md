@@ -37,16 +37,16 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | Profile | Plugins | Rules | Skills | Agents | Hooks | Templates |
 |---|---:|---:|---:|---:|---:|---:|
 | `info` | 8 | 9 | 1 | — | — | 4 |
-| `research` | 9 | 12 | 1 | — | — | 4 |
-| `paper` | 9 | 16 | 9 | 5 | 2 | 5 |
-| `paper-latex` | 9 | 20 | 11 | 5 | 3 | 5 |
+| `research` | 9 | 13 | 1 | — | — | 4 |
+| `paper` | 9 | 17 | 9 | 5 | 2 | 5 |
+| `paper-latex` | 9 | 21 | 11 | 5 | 3 | 5 |
 | `code` | 9 | 13 | 1 | — | — | 4 |
 
 ### What's common vs specific at a glance
 
 - **In all five profiles** (base + info): 8 plugins, 9 rules, 1 skill, 4 templates.
 - **In four profiles** (`research` + `paper` + `paper-latex` + `code` — *not* `info`): 1 plugin (`context7`).
-- **In three profiles** (`research` + `paper` + `paper-latex`): 3 rules (`citation-discipline`, `reading-before-editing`, `pdf-processing`).
+- **In three profiles** (`research` + `paper` + `paper-latex`): 4 rules (`citation-discipline`, `reading-before-editing`, `pdf-processing`, `knowledge-work-structure`).
 - **In `paper` and `paper-latex`**: 4 rules (`humanize-prose`, `post-flight-verification`, `proofreading-protocol`, `cross-artifact-review`), 8 skills, 5 agents, 2 hooks, 1 template.
 - **`paper-latex`-only** (LaTeX/TikZ layer on top of `paper`): 4 rules (`latex-bibtex-discipline`, `tikz-prevention`, `tikz-library-bundle`, `tikz-snippets/`), 2 skills (`tikz`, `validate-bib`), 1 hook (`verify-reminder.py`).
 - **Code-only**: 4 rules.
@@ -65,7 +65,7 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `elements-of-style@superpowers-marketplace` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `context7@claude-plugins-official` | — | ✓ | ✓ | ✓ | ✓ |
 
-### Rules (24 unique)
+### Rules (25 unique)
 
 | Rule | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
@@ -81,6 +81,7 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `citation-discipline.md` — never cite from memory | — | ✓ | ✓ | ✓ | — |
 | `reading-before-editing.md` — full read before research edits | — | ✓ | ✓ | ✓ | — |
 | `pdf-processing.md` — safe large-PDF chunked workflow | — | ✓ | ✓ | ✓ | — |
+| `knowledge-work-structure.md` — research/papers/input/insights/deliverables/questions layout | — | ✓ | ✓ | ✓ | — |
 | `humanize-prose.md` — how to use the humanizer skill | — | — | ✓ | ✓ | — |
 | `post-flight-verification.md` — Chain-of-Verification discipline | — | — | ✓ | ✓ | — |
 | `proofreading-protocol.md` — three-phase propose → approve → apply | — | — | ✓ | ✓ | — |
