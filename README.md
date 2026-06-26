@@ -18,6 +18,25 @@ A GitHub template repository with sane Claude Code defaults for autonomous work.
 
 The script merges the profile's overlay into `.claude/settings.json`, copies profile-specific rules into `.claude/rules/`, appends profile guidance to `.claude/CLAUDE.md`, vendors profile-specific skills into `.claude/skills/`, then removes `.claude/profiles/` and `.claude/init.sh` themselves. Your repo ends up with only the final configuration.
 
+### Bootstrap into an existing directory
+
+"Use this template" is for new GitHub repos. To drop the template into an **existing** directory — local or remote, empty or with content, git repo or not — use `bootstrap.sh`. It fetches `.claude/` (and `.gitignore` if you don't have one) from the latest release into the current directory and runs `init.sh` for you, in one command.
+
+Recommended (inspect-first) two-step:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/bootstrap.sh -o /tmp/arp-bootstrap.sh
+bash /tmp/arp-bootstrap.sh research        # or any profile, plus init.sh flags
+```
+
+Convenience one-liner (auto-executes remote code — use only if you trust the source):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/bootstrap.sh | bash -s -- research
+```
+
+Options: `--ref vX.Y.Z` pins a version (default `main` = latest release); `--force` overlays even if a `.claude/` already exists (otherwise bootstrap refuses, to avoid clobbering a configured repo); `--cloud-compat` / `--strict-sandbox` / `--dry-run` pass through to `init.sh`.
+
 ## Profiles at a glance
 
 | Profile | Primary use | Extends |
@@ -179,6 +198,7 @@ The `paper` and `paper-latex` profiles adopt 17 pieces from [pedrohcgs/claude-co
 
 - `refresh-skills.sh` — re-fetch upstream-sourced skills (currently: `humanizer` in the paper profile).
 - `.template-version` — stamp recording which template `version` / `profile` was applied and `applied_at` timestamp. Used by `/template-check`.
+- `bootstrap.sh` (root-level) — one-command initializer for dropping the template into an existing directory; see [Bootstrap into an existing directory](#bootstrap-into-an-existing-directory). `init.sh` removes it from a repo it initializes (it's tooling for setting up *other* directories, not project content).
 
 ### Escape hatch
 

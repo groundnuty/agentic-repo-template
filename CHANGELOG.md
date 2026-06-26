@@ -45,6 +45,42 @@ Bypass-mode disables all permission gates including the deny list. D2 (32-repo s
 
 ---
 
+## [v0.1.18] — 2026-06-26
+
+New: `bootstrap.sh` — one-command init for an existing directory.
+
+### What changed
+
+- **`bootstrap.sh`** (new, repo root) — drops the template's `.claude/` tree (and `.gitignore`, if you don't already have one) into the *current* directory and runs `init.sh <profile>`, in one command. Works in any directory: empty or with content, git repo or not. This is the supported equivalent of the manual "clone the template, copy `.claude/`, run `init.sh`, clean up" dance.
+
+  ```bash
+  # inspect-first (recommended)
+  curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/bootstrap.sh -o /tmp/arp-bootstrap.sh
+  bash /tmp/arp-bootstrap.sh research
+
+  # one-liner (auto-executes remote code — trust the source)
+  curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/bootstrap.sh | bash -s -- research
+  ```
+
+  Flags: `--ref vX.Y.Z` (pin a version; default `main` = latest release), `--force` (overlay an existing `.claude/` — refused by default to avoid clobbering a configured repo), and pass-throughs `--cloud-compat` / `--strict-sandbox` / `--dry-run` → `init.sh`.
+
+- **`init.sh` removes `bootstrap.sh`** from a repo it initializes (consistent with how it resets the template README and deletes the template CHANGELOG) — `bootstrap.sh` is tooling for setting up *other* directories, not project content. The "Use this template" flow ships it at root; running `init.sh` cleans it up.
+
+### Why
+
+"Use this template" creates a new GitHub repo; it doesn't help when you want the config in an existing local or remote directory. That case (drop into an arbitrary dir) had no first-class command — `bootstrap.sh` fills it.
+
+### Notes
+
+- `bootstrap.sh` honors an `ARP_BOOTSTRAP_SOURCE` env var (local directory or alternate git URL) so forks and the test suite can point it somewhere other than the public repo.
+- No profile-content change. Rules, skills, settings, hooks are identical to v0.1.17.
+
+### Tests
+
+10 new assertions: `bootstrap.sh` ships + is executable; bootstrapping a fresh dir produces a valid init (settings + stamp + knowledge-work rule present, `.gitignore` seeded, `profiles/` self-cleaned); the no-clobber guard refuses a second run without `--force`; an existing `.gitignore` is not overwritten; `init.sh` removes `bootstrap.sh` from an initialized repo. 169 tests total, all green. (`bootstrap.sh` is also clean under `shellcheck`.)
+
+---
+
 ## [v0.1.17] — 2026-06-25
 
 New rule: standardized knowledge-work directory structure for research-tier profiles.

@@ -18,7 +18,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.17"
+TEMPLATE_VERSION="v0.1.18"
 
 usage() {
   cat <<EOF
@@ -171,6 +171,12 @@ cleanup_template_metadata() {
   # project. Delete if it looks like our template CHANGELOG.
   if [ -f CHANGELOG.md ] && head -5 CHANGELOG.md | grep -q 'User-facing history of this template'; then
     rm -f CHANGELOG.md
+  fi
+
+  # bootstrap.sh: tooling for initializing OTHER directories from the template;
+  # irrelevant inside an already-initialized consuming repo. Delete if it's ours.
+  if [ -f bootstrap.sh ] && head -3 bootstrap.sh | grep -q 'initialize the CURRENT directory from agentic-repo-template'; then
+    rm -f bootstrap.sh
   fi
 }
 
