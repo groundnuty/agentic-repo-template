@@ -44,3 +44,6 @@ target/
 # Claude local-only state
 .claude/settings.local.json
 .claude/.cache/
+
+# Template upgrade backups
+.claude.pre-upgrade-*/

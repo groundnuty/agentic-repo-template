@@ -248,35 +248,38 @@ Claude reads the stamp, fetches the latest release tag from [the template repo's
 - **No network** — can't reach `api.github.com`; prints your stamp and stops.
 - **No stamp** — this repo predates v0.1.9 or wasn't initialized via `init.sh`; prints instructions for creating a stamp by hand.
 
-### Applying an update (manual)
+### Applying an update — `upgrade.sh` (v0.1.20+)
 
-There's no automated upgrade path — user-owned files (`CLAUDE.md`, `.claude/rules/project-conventions.md`) can't be safely merged without human review. Manual flow:
+One command upgrades an already-initialized repo to the latest release. It reads `.claude/.template-version` for the profile and sandbox flags, so **you don't have to remember how the repo was initialized**:
 
 ```bash
-# 1. Clone the latest template elsewhere, check out the target tag.
+# preview first (recommended) — shows the version jump, CHANGELOG delta, and any custom settings.json entries
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o /tmp/arp-upgrade.sh
+bash /tmp/arp-upgrade.sh --dry-run
+
+# apply
+bash /tmp/arp-upgrade.sh
+```
+
+Or, from inside a Claude Code session in the repo, run the **`/template-upgrade`** slash command — it runs the same flow and helps reconcile any custom `settings.json` entries.
+
+What it does:
+
+- **Backs up** the existing `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored).
+- **Regenerates** the template-owned config for your stamped profile + flags: `settings.json`, `skills/ agents/ hooks/ templates/ commands/`, profile rules, `refresh-skills.sh`.
+- **Preserves** your files: `settings.local.json`, `rules/project-conventions.md`, `.claude/CLAUDE.md`, `audit.log`, `session-reports/`.
+- **Bumps the stamp** to the new version and prints the CHANGELOG delta.
+
+`settings.json` is **regenerated fresh, not merged** — a union merge would re-add entries the template deliberately removed (e.g. deprecated `Write(path)` denies). If you edited `settings.json` directly, the upgrader reports the custom entries so you can move them to `settings.local.json` (the intended home for overrides, preserved across upgrades). `--ref vX.Y.Z` targets a specific version.
+
+<details><summary>Manual flow (if you prefer to cherry-pick by hand)</summary>
+
+```bash
 git clone https://github.com/groundnuty/agentic-repo-template.git /tmp/arp-latest
-git -C /tmp/arp-latest checkout v0.1.9   # or whichever tag
-
-# 2. Diff against your repo's .claude/ to see what changed.
-diff -r /tmp/arp-latest/.claude .claude | less
-
-# 3. Cherry-pick what you want. Likely candidates:
-#    - settings.json deny-list expansions
-#    - new rules in rules/
-#    - updated rule content
-#    Unlikely candidates (already user-owned):
-#    - CLAUDE.md (root)
-#    - rules/project-conventions.md
+diff -r /tmp/arp-latest/.claude .claude | less   # cherry-pick settings/rules; skip CLAUDE.md + project-conventions.md
+sed -i '' "s/^version=.*/version=vX.Y.Z/" .claude/.template-version   # re-stamp (macOS; drop '' on Linux)
 ```
-
-After updating, re-stamp `.claude/.template-version` to reflect the new version:
-
-```bash
-sed -i '' "s/^version=.*/version=v0.1.9/" .claude/.template-version   # macOS
-# or on Linux:  sed -i "s/^version=.*/version=v0.1.9/" .claude/.template-version
-```
-
-An automated `/template-upgrade` command that handles the diff/merge is tracked for v0.2.x; for now, manual review is the safer default.
+</details>
 
 ### Sandbox modes (v0.1.15+)
 

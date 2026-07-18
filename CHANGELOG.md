@@ -45,6 +45,42 @@ Bypass-mode disables all permission gates including the deny list. D2 (32-repo s
 
 ---
 
+## [v0.1.20] — 2026-07-18
+
+New: `upgrade.sh` + `/template-upgrade` — one-command upgrade of an already-initialized repo. This is the automated upgrade path deferred since v0.1.9 (D30).
+
+### What changed
+
+- **`upgrade.sh`** (new, repo root). Upgrades the current repo to the latest release with no arguments — it reads `.claude/.template-version` for the profile and sandbox flags (`cloud_compat`, `strict_sandbox`), so you don't have to remember how the repo was initialized.
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o /tmp/arp-upgrade.sh
+  bash /tmp/arp-upgrade.sh --dry-run   # preview: version jump, CHANGELOG delta, custom settings.json entries
+  bash /tmp/arp-upgrade.sh             # apply
+  ```
+
+  - **Backs up** `.claude/` → `.claude.pre-upgrade-<oldversion>/` (auto-gitignored).
+  - **Regenerates** template-owned config for the stamped profile + flags: `settings.json`, `skills/ agents/ hooks/ templates/ commands/`, profile rules, `refresh-skills.sh`.
+  - **Preserves** `settings.local.json`, `rules/project-conventions.md`, `.claude/CLAUDE.md`, `audit.log`, `session-reports/`.
+  - **Bumps the stamp** and prints the CHANGELOG delta.
+  - No-op (exits 0, no backup) when already current. Refuses a repo with no stamp. `--ref vX.Y.Z` targets a version; `--dry-run` previews.
+
+- **`/template-upgrade`** slash command (new). Runs the same flow from inside a session and guides the agent through reconciling any custom `settings.json` entries against the CHANGELOG (removed-by-template vs your-customization).
+
+- **`settings.json` is regenerated, not merged.** A union merge would re-add entries the template deliberately removed (e.g. the deprecated `Write(path)` denies dropped in v0.1.19). Overrides belong in `settings.local.json` (preserved). If you edited `settings.json` directly, the upgrader reports each custom entry so you can relocate it.
+
+- **`init.sh` removes `upgrade.sh`** from a repo it initializes (same as `bootstrap.sh` — you always fetch a fresh `upgrade.sh`, never run a committed stale copy). The `/template-upgrade` command *does* ship into the repo. Template `.gitignore` now ignores `.claude.pre-upgrade-*/`.
+
+### Why
+
+Fresh init (`bootstrap.sh`) and staleness detection (`/template-check`) existed, but there was no safe way to *apply* an update — the manual cherry-pick flow was the only option, and `bootstrap.sh --force` clobbers user files with no backup. `upgrade.sh` closes the loop: check → upgrade, both one command.
+
+### Tests
+
+11 new assertions: `upgrade.sh` ships + executable, `/template-upgrade` command ships + survives init, `init.sh` removes `upgrade.sh`, functional upgrade of an old-stamped repo (stamp bumps, `project-conventions.md` + `settings.local.json` preserved, backup created, custom `settings.json` entry reported, regenerated settings drops the direct custom deny), no-op when current, refuses a stampless repo. 192 tests total, all green.
+
+---
+
 ## [v0.1.19] — 2026-07-18
 
 Fix: drop deprecated `Write(path)` permission-deny rules — clears the `/doctor` startup warnings on Claude Code v2.1.210+.

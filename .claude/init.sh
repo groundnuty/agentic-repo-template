@@ -18,7 +18,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.19"
+TEMPLATE_VERSION="v0.1.20"
 
 usage() {
   cat <<EOF
@@ -177,6 +177,12 @@ cleanup_template_metadata() {
   # irrelevant inside an already-initialized consuming repo. Delete if it's ours.
   if [ -f bootstrap.sh ] && head -3 bootstrap.sh | grep -q 'initialize the CURRENT directory from agentic-repo-template'; then
     rm -f bootstrap.sh
+  fi
+
+  # upgrade.sh: same — you always fetch a fresh upgrade.sh (curl | bash) rather
+  # than run a committed stale copy. Delete if it's ours.
+  if [ -f upgrade.sh ] && head -3 upgrade.sh | grep -q 'upgrade an already-initialized repo to the latest template version'; then
+    rm -f upgrade.sh
   fi
 }
 
