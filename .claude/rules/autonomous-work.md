@@ -63,3 +63,11 @@ For **custom or third-party plugin MCPs** that aren't on this list, add per-serv
 ```
 
 If a new claude.ai connector ships and isn't in our base list, you can either add it to `settings.local.json` immediately or wait for the next template release. Until then, the first tool call from that connector will prompt — then Claude Code remembers your choice for the rest of the session.
+
+## File-permission rules use `Edit(path)`, not `Write(path)` (v0.1.19+)
+
+As of Claude Code **v2.1.210**, only `Edit(path)` and `Read(path)` rules are matched by file-permission checks — and `Edit(path)` covers **all** file-editing tools (`Edit`, `Write`, `NotebookEdit`). Standalone `Write(path)` / `NotebookEdit(path)` / `Glob(path)` permission rules are no longer honored as file-permission checks and trigger a `/doctor` startup warning.
+
+The base deny list therefore protects each sensitive path with a single `Edit(<path>)` rule (ssh, aws, gnupg, kube, gcloud, gitconfig, npmrc, pypirc, docker, netrc, gh, shell init files, `~/.claude/settings.json`, `~/.claude.json`). One `Edit(...)` rule blocks both the Edit and Write tools — no paired `Write(...)` entry is needed (and adding one just re-introduces the warning).
+
+If you extend the deny list to guard a new path from file edits, use `Edit(<path>)`. Reserve `Bash(...)` denies for command patterns, and note that neither covers a sandboxed shell reading a file — for that, use `sandbox.filesystem.denyRead` (already set for ssh keys / aws / kube / gcloud) or the newer `sandbox.credentials` knob.

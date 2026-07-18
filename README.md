@@ -187,7 +187,7 @@ The `paper` and `paper-latex` profiles adopt 17 pieces from [pedrohcgs/claude-co
 
 ### Base `.claude/` (shipped to every profile)
 
-- `settings.json` — permissions (wildcard allow with bare tool names + 62-entry deny list including `Edit`/`Write` to sensitive paths), sandbox (OS-level enforcement, `failIfUnavailable: true`), plugins (8 baseline), hooks (SessionStart / ConfigChange / PreCompact / SessionEnd), env (`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, `ENABLE_LSP_TOOL=1`), `effortLevel: xhigh` + `verbose: true` tuned for Opus 4.7 agentic work.
+- `settings.json` — permissions (wildcard allow with bare tool names + deny list with `Edit(...)` rules for sensitive paths — `Edit(path)` covers all file-editing tools incl. `Write`/`NotebookEdit` per Claude Code v2.1.210+), sandbox (OS-level enforcement, cloud-safe by default — `enableWeakerNestedSandbox: true`, no `failIfUnavailable`; opt into the hard gate with `init.sh --strict-sandbox`), plugins (8 baseline), hooks (SessionStart / ConfigChange / PreCompact / SessionEnd), env (`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, `ENABLE_LSP_TOOL=1`), `effortLevel: xhigh` + `verbose: true` tuned for agentic work.
 - `CLAUDE.md` — project-conventions stub. Each profile appends a `CLAUDE.append.md` overview on init.
 - `rules/` — three base rules: `autonomous-work.md`, `pr-discipline.md`, `project-conventions.md`.
 - `audit.log` — committed to git; `ConfigChange` hook appends a line on every `.claude/*` modification.

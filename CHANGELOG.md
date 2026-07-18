@@ -45,6 +45,37 @@ Bypass-mode disables all permission gates including the deny list. D2 (32-repo s
 
 ---
 
+## [v0.1.19] — 2026-07-18
+
+Fix: drop deprecated `Write(path)` permission-deny rules — clears the `/doctor` startup warnings on Claude Code v2.1.210+.
+
+### What changed
+
+- **Removed 19 `Write(<path>)` entries** from the base `settings.json` deny list. As of Claude Code **v2.1.210**, only `Edit(path)` and `Read(path)` rules are matched by file-permission checks, and `Edit(path)` covers **all** file-editing tools (`Edit`, `Write`, `NotebookEdit`). Standalone `Write(path)` rules are no longer honored and each threw a startup warning:
+
+  > `Write(~/.ssh/**) is not matched by file permission checks — only Edit(path) rules are. Use Edit(~/.ssh/**) instead.`
+
+  Every removed `Write(<path>)` already had an `Edit(<path>)` twin in the deny list, so **protection is unchanged** — the `Edit(...)` rule blocks both the Edit and Write tools. Deny list: 62 → 43 entries; all 19 sensitive-path `Edit(...)` denies retained (ssh, aws, gnupg, kube, gcloud, gitconfig, npmrc, pypirc, docker, netrc, gh, shell init files, `~/.claude/settings.json`, `~/.claude.json`).
+
+- **`rules/autonomous-work.md`**: new section documenting that file-permission denies use `Edit(path)` (not `Write(path)`), why one `Edit(...)` rule is sufficient, and that sandboxed-shell reads are guarded separately (`sandbox.filesystem.denyRead` / `sandbox.credentials`).
+
+### Migration for existing repos
+
+Edit `.claude/settings.json` and delete the `Write(...)` lines from `permissions.deny` (keep the `Edit(...)` lines). Or re-run `init.sh <profile>` from a v0.1.19 clone / `bootstrap.sh --force`. No protection is lost — the warnings just go away.
+
+### Also noted from the Claude Code v2.1.114 → v2.1.214 changelog (no template change required)
+
+- **v2.1.212** — subagents inherit the session's permission mode; the Task `mode` parameter is deprecated. We don't set it. No change.
+- **v2.1.195** — hook matchers with hyphens (e.g. `code-reviewer`) are now exact-match, not substring. Our hooks use no hyphenated matchers. No change.
+- **v2.1.200** — the default permission mode was renamed "default" → "Manual". We don't set `defaultMode`. No change.
+- **v2.1.183/191** — new `sandbox.credentials` setting blocks sandboxed commands from reading credential files + env vars. A genuine complement to our `sandbox.filesystem.denyRead`; evaluated as a candidate for a future release once its exact `{files, envVars}` semantics are pinned down. Not adopted in v0.1.19.
+
+### Tests
+
+8 new assertions: no `Write()`/`NotebookEdit()`/`Glob()` path rules anywhere in `permissions`; each of the 7 spot-checked sensitive paths still has an `Edit(...)` deny. 177 tests total, all green.
+
+---
+
 ## [v0.1.18] — 2026-06-26
 
 New: `bootstrap.sh` — one-command init for an existing directory.
