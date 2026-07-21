@@ -45,6 +45,34 @@ Bypass-mode disables all permission gates including the deny list. D2 (32-repo s
 
 ---
 
+## [v0.1.21] — 2026-07-21
+
+Security hardening + docs + a dead-reference fix. No breaking changes.
+
+### `sandbox.credentials.files` — block sandboxed reads of credential dirs
+
+Added `sandbox.credentials.files` to base `settings.json` (Claude Code v2.1.187+). Sandboxed Bash commands can, by default, *read* credential files even though they can't write them — a `cat ~/.ssh/id_rsa` inside the sandbox succeeds. This block denies sandboxed reads of `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.kube`, `~/.config/gcloud`, `~/.config/gh`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`, and `~/.docker/config.json` — extending coverage well beyond the four paths already in `sandbox.filesystem.denyRead` (kept as a pre-v2.1.187 compatibility floor). Pure hardening; nothing legitimate reads these during a build/test.
+
+**`sandbox.credentials.envVars` is intentionally NOT shipped in base**, and here's why: `deny` (unset the var for sandboxed commands) would break tools that need the token — `gh`, `npm` — inside the sandbox, and `mask` (the keep-tools-working option) requires `network.tlsTerminate` and is **ignored when it lives in project `settings.json`** (only user/managed settings honor it), which is exactly where the template ships. Cloud + Anthropic credentials are already stripped from every subprocess by `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`. If you want env-var scrubbing for other tokens, add `sandbox.credentials.envVars` to your own `~/.claude/settings.json` (`deny`, or `mask` with `tlsTerminate`).
+
+### Auto-mode playbook → `rules/autonomous-work.md`
+
+New section documenting the interaction that causes the most confusing prompts: **auto mode suspends broad `Bash` allow rules** (so bare `Bash` in `permissions.allow` doesn't stop prompts — the classifier decides), **subagents inherit the session's auto mode** (v2.1.212+) and escalate classifier denials to the leader, and the fix is `autoMode.environment` / `autoMode.allow` in **`~/.claude/settings.json`** (the classifier ignores project settings). Includes the `/permissions` → Recently denied triage flow.
+
+### Fixed `/review-r` dead reference (paper profile)
+
+`cross-artifact-review.md` and the `review-paper` / `audit-reproducibility` skills referenced `/review-r`, an R-specific code-review skill from the upstream pedrohcgs workflow that this template **does not ship**. Generalized to a language-agnostic "review the referenced scripts" instruction (D34-class cleanup). Also removed the dead Cursor `.mdc` frontmatter (`globs:` / `alwaysApply:`, which Claude Code ignores) and stale cross-refs from `cross-artifact-review.md` while there.
+
+### Changelog scan (v2.1.215 → v2.1.216)
+
+Reviewed; nothing forces a template change. v2.1.215's breaking "`/verify` and `/code-review` no longer auto-run" doesn't touch us (we auto-invoke only our own skills). v2.1.214's hook `if:` glob change and `dir/**` allow-rule change don't apply (we use neither). New `sandbox.filesystem.disabled` not adopted (we want isolation).
+
+### Tests
+
+7 new assertions: `sandbox.credentials.files` present with deny entries for the key credential dirs; no `/review-r` reference anywhere in the paper profile. 198 tests total, all green.
+
+---
+
 ## [v0.1.20] — 2026-07-18
 
 New: `upgrade.sh` + `/template-upgrade` — one-command upgrade of an already-initialized repo. This is the automated upgrade path deferred since v0.1.9 (D30).

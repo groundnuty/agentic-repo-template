@@ -71,3 +71,30 @@ As of Claude Code **v2.1.210**, only `Edit(path)` and `Read(path)` rules are mat
 The base deny list therefore protects each sensitive path with a single `Edit(<path>)` rule (ssh, aws, gnupg, kube, gcloud, gitconfig, npmrc, pypirc, docker, netrc, gh, shell init files, `~/.claude/settings.json`, `~/.claude.json`). One `Edit(...)` rule blocks both the Edit and Write tools — no paired `Write(...)` entry is needed (and adding one just re-introduces the warning).
 
 If you extend the deny list to guard a new path from file edits, use `Edit(<path>)`. Reserve `Bash(...)` denies for command patterns, and note that neither covers a sandboxed shell reading a file — for that, use `sandbox.filesystem.denyRead` (already set for ssh keys / aws / kube / gcloud) or the newer `sandbox.credentials` knob.
+
+## Auto mode and the classifier (v0.1.21+)
+
+Claude Code's **auto mode** (on by default on recent versions) is a second gate that runs *after* the permission rules — a model classifier that blocks anything it judges irreversible, destructive, or aimed outside your environment. Two consequences matter here:
+
+- **Auto mode suspends broad `Bash` allow rules.** This template ships bare `Bash` in `permissions.allow`, but auto mode treats `Bash` / `Bash(*)` as arbitrary code execution and hands the command to the classifier instead. "We allow all Bash" does **not** mean "no prompts" — the classifier still decides. Narrow rules like `Bash(npm test)` are honored; broad ones are not (unless `autoMode.classifyAllShell` is set).
+- **Subagents inherit the session's auto mode** (Claude Code v2.1.212+). A subagent can't show you a prompt, so when the classifier flags its command it escalates to the leader, which asks you. That's why a command you drive directly runs fine (your explicit intent clears the classifier) while a subagent doing the "same" command keeps asking.
+
+### Relax it — don't disable it
+
+Turning auto mode off loses the classifier's protection and usually yields *more* prompts. Instead tell the classifier what to trust. Trusted infrastructure and scratch areas go in **`~/.claude/settings.json` under `autoMode.environment`** — **not** project `.claude/settings.json` (the classifier deliberately ignores project settings so a checked-in repo can't self-trust). Entries are prose; include `"$defaults"` to extend rather than replace the built-in rules:
+
+```json
+{
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "Key internal services: the host 'build-box' and its Kubernetes clusters are trusted internal dev infrastructure.",
+      "Local scratch: $TMPDIR / /tmp and clones under it are trusted local working areas, not external destinations."
+    ]
+  }
+}
+```
+
+### Triage a denial
+
+Open `/permissions` → **Recently denied**. Each entry shows the classifier's reason — it tells you whether to add an `autoMode.environment` entry (trusted destination), an `autoMode.allow` exception (routine pattern), or to retry with explicit intent (press `r`). `claude auto-mode config` prints the effective rules so you can confirm your entries took effect. This is user-machine config, not template config — the template can't ship your trusted-infra list, but knowing it lives in `~/.claude` under `autoMode.*` saves the debugging round-trips.

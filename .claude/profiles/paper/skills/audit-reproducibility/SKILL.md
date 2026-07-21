@@ -159,7 +159,7 @@ Write `.claude/session-reports/reproducibility_audit_[manuscript-name].md`:
 ## Cross-references
 
 - [`.claude/rules/replication-protocol.md`](../../rules/replication-protocol.md) — the tolerance contract.
-- [`.claude/skills/review-r/SKILL.md`](../review-r/SKILL.md) — catches code-style issues; this skill catches NUMERICAL reproducibility.
+- `.claude/rules/cross-artifact-review.md` — the code review of referenced scripts; this skill catches NUMERICAL reproducibility.
 - [`.claude/skills/review-paper/SKILL.md`](../review-paper/SKILL.md) — content review; pair with this skill for a full pre-submission audit.
 
 ## What this skill does NOT do
