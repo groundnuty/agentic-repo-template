@@ -50,7 +50,21 @@ In a single message, spawn 7 Task tool calls (one per lens). Each subagent gets:
 - The manuscript path (to re-read with its own context).
 - The lens-specific prompt (below).
 - Instructions to write to `.claude/session-reports/seven_pass_[stem]/lens_[N]_[lens-name].md`.
-- Severity tagging: CRITICAL / MAJOR / MINOR.
+- A closing `findings:` block in the minimal schema below, plus a `scorecard:` line of per-severity counts.
+
+**Minimal FINDING schema.** Every lens closes its report with typed findings in this shape, so Phase 2 can reduce over them mechanically instead of re-reading the manuscript:
+
+```yaml
+findings:
+  - severity: CRITICAL | MAJOR | MINOR
+    location: <section, page, table, or line>
+    finding: <one sentence — what is wrong>
+    evidence: <quote or number lifted from the manuscript>
+    change_my_mind: <what would make this concern go away>
+scorecard: { critical: N, major: N, minor: N, score_out_of_10: N }
+```
+
+`evidence` and `change_my_mind` are mandatory on every CRITICAL and MAJOR. A finding without evidence is a MINOR at best.
 
 Lens prompt rubrics are embedded inline below — one summary paragraph per lens. Each forked subagent receives its lens's rubric plus the manuscript path.
 
@@ -58,15 +72,27 @@ Lens prompt rubrics are embedded inline below — one summary paragraph per lens
 
 - **Lens 1 (Abstract):** Does the first sentence state the question? Does it name the method? Quantify the headline result? State one-sentence contribution? Cross-check: do these four things match the body?
 - **Lens 2 (Intro):** Does the intro open with the question? Hook → context → contribution → roadmap? Lit review placed correctly (after the hook, not before)? Contribution-counted (1, 2, 3…)? Preview of findings with magnitudes?
-- **Lens 3 (Methods):** Is every assumption stated? Are they strong or weak? Is identification one-liner clear? Are known violations (selection, measurement, reverse causality, SUTVA) addressed? Are instruments / RDD / DiD assumptions explicit and defensible?
+- **Lens 3 (Methods):** Is every assumption stated? Are they strong or weak? Is the one-line statement of *why this design answers the question* clear? Are the standard threats for this design (selection, measurement error, reverse causality, confounding, interference between units) addressed? Are the design's own assumptions stated explicitly and defended?
 - **Lens 4 (Results):** Does each table read standalone (caption, units, SEs clarified)? Is magnitude interpreted (not just significance)? Are units consistent across tables? Are figures legible at 8pt?
 - **Lens 5 (Robustness):** Does the paper ANTICIPATE a sharp referee's objections? Are robustness checks motivated, or just listed? Power/placebo tests present? Heterogeneity explored where promised?
 - **Lens 6 (Prose):** Sentences under 30 words? Active voice dominant? Hedging proportionate (neither overclaiming nor endless "may suggest")? Paragraph topic sentences?
 - **Lens 7 (Citations):** Invoke `/validate-bib --semantic`. For top-10 cited works, does the in-text claim match the cited paper's actual finding direction? Are contemporary / competing works cited?
 
-### Phase 2: Synthesize
+### Phase 2: Synthesize (reduce → judge, with the hallucination gate)
 
-Wait for all 7 lens reports. Then read them and produce:
+Wait for all 7 lens reports.
+
+**Reduce, don't re-review.** Stack the seven `scorecard`s and their typed `findings`, and derive the Executive verdict *from them*. The verdict is a function of what the seven lenses found — it is not a fresh eighth opinion, and the synthesizer does not re-read the prose to form one. A synthesis may freely **downgrade** a lens finding, **de-duplicate** two lenses that flagged the same thing, or **resolve** a contradiction between lenses. It may **not invent a new blocker**.
+
+**Post-judge hallucination gate.** Any CRITICAL the synthesis introduces that **no lens raised** must be re-verified before it is allowed to stand:
+
+1. Spawn a fresh `claim-verifier` fork (`Task` with `subagent_type=claim-verifier` and `context=fork`), passing the claim, its evidence, and the manuscript path. Fresh context is the point — the verifier has never seen the synthesis and cannot self-confirm it.
+2. If it verifies, keep the CRITICAL and cite the verification in the report.
+3. If it does not verify — or the check is skipped — drop the finding, label it `[JUDGE-HALLUCINATED]` in the synthesis, and **recompute the Executive verdict** without it.
+
+See [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md) for the underlying protocol.
+
+Then produce:
 
 `.claude/session-reports/seven_pass_[stem]/_SYNTHESIS.md`
 
@@ -110,6 +136,9 @@ Wait for all 7 lens reports. Then read them and produce:
 
 ## Contradictions between lenses
 [If two lenses disagree, surface here. E.g., Lens 2 says "expand contribution" but Lens 6 says "trim intro".]
+
+## Judge-introduced findings (post-gate)
+[Any CRITICAL the synthesis raised that no lens did: verified via claim-verifier (cite it), or `[JUDGE-HALLUCINATED]` and excluded from the verdict. "None" if the synthesis added nothing.]
 ```
 
 ### Phase 3: Token-budget report

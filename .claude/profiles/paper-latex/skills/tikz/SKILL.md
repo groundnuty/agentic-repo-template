@@ -1,7 +1,7 @@
 ---
 name: tikz
 description: Audit and fix residual TikZ visual collisions in a .tex file. A downstream repair tool — not a safety net. The upstream defense is rules/tikz-prevention.md, which describes writing safe TikZ from the start. Use /tikz when labels overlap arrows, text sits on boxes, or arrows cross each other. Applies mathematical gap calculations and Bézier depth formulas — no eyeballing.
-allowed-tools: Bash(pdflatex*), Bash(grep*), Bash(ls*), Read, Edit, Glob
+allowed-tools: Bash(pdflatex*), Bash(grep*), Bash(ls*), Bash(file*), Bash(wc*), Read, Edit, Glob
 argument-hint: [path/to/file.tex]
 ---
 
@@ -33,6 +33,30 @@ argument-hint: [path/to/file.tex]
 
 ---
 
+## Step 0: Route by input type
+
+`/tikz` takes a path. What you can do depends on what kind of file it is:
+
+| Input | Mode | What to do |
+|---|---|---|
+| `.tex` (or `.tikz`) source | **Measurement mode** — the default and the reliable one | Run the full audit below: Pass 0–6 against the source, with the debug bounding-box (Pass 6) as the verification technique. |
+| `.png` / `.jpg` / single-figure `.pdf`, **no source available** | **Visual fallback** | Read the image and inspect it directly. Report findings; you cannot apply source fixes without the source. |
+| Multi-page `.pdf` | **Refuse** | Point the skill at the source `.tex` instead. A multi-page render is not auditable as a single figure. |
+
+**Prefer measurement mode whenever source exists.** Visual inspection is a fallback for rasters with no `.tex`, not a substitute for the gap calculations. The skill's founding premise still holds: eyeballing a rendered figure does not reliably catch the near-miss overlaps this skill exists to find — a label 0.05cm from an arrow looks fine and is not. When you use the visual fallback, say so explicitly in the report and mark the findings as lower-confidence than measured ones.
+
+### Fix table by toolchain (visual fallback)
+
+When the figure came from a plotting toolchain rather than hand-written TikZ, the fix belongs upstream in that toolchain:
+
+| Toolchain | Overlapping labels | Clipped elements |
+|---|---|---|
+| TikZ | reposition with explicit `above`/`below`/`left`/`right` + `xshift`/`yshift`; see `rules/tikz-prevention.md` | widen `\useasboundingbox`, or add `inner sep` |
+| ggplot2 | `ggrepel::geom_text_repel()`; `theme(legend.position=)` | `expand_limits()`, `coord_cartesian(clip="off")`, widen `plot.margin` |
+| matplotlib | `adjustText`, or `annotate()` with explicit `xytext` offsets | `plt.tight_layout()`, `bbox_inches="tight"` on save |
+
+---
+
 ## Step 1: Identify the file and run the pre-check
 
 If the user specified a file, use it. If not, ask. Then:
@@ -45,7 +69,7 @@ Get a sense of scope: how many TikZ diagrams, how many frames, how many arrows.
 
 ### Pre-check: were the prevention rules followed?
 
-Before running the six audit passes, quickly assess whether the TikZ was written safely:
+Before running the audit passes (Pass 0 through Pass 6), quickly assess whether the TikZ was written safely:
 
 ```bash
 # Check for autosized nodes (no minimum width/height)
@@ -70,7 +94,7 @@ grep -n "% Coordinate map\|% Node map\|% Layout\|% Coordinates:" [file].tex
 
 ---
 
-## Step 2: For each TikZ diagram, run all 6 Passes in order
+## Step 2: For each TikZ diagram, run all 7 passes (Pass 0–6) in order
 
 ---
 
@@ -208,27 +232,33 @@ This replaces the earlier instruction to "open the PDF and visually confirm." Th
 
 ---
 
-## Step 3: Fix, recompile, repeat
+## Step 3: Fix, recompile, check for *new* damage
 
-After making fixes:
+After making fixes, recompile and compare against the baseline you captured before editing:
 
 ```bash
-pdflatex -interaction=nonstopmode [file].tex 2>&1 | grep -E "Overfull|Underfull|Error|Warning"
+# Baseline BEFORE your first edit:
+pdflatex -interaction=nonstopmode [file].tex 2>&1 | grep -E "Overfull|Underfull|Error" > /tmp/tikz-baseline.txt
+# After each fix:
+pdflatex -interaction=nonstopmode [file].tex 2>&1 | grep -E "Overfull|Underfull|Error" > /tmp/tikz-after.txt
+diff /tmp/tikz-baseline.txt /tmp/tikz-after.txt
 ```
 
-Must return zero lines. Fix any new warnings introduced by the repositioning. Repeat until clean.
+**The gate is "no NEW warnings," not "zero warnings."** A real manuscript always emits some `Overfull \hbox` and font-substitution noise from bibliography, fonts, and body text that has nothing to do with your figures — demanding a clean log is an exit condition you will never reach. What matters is that your repositioning didn't introduce anything.
+
+**Circuit breaker (from `rules/tikz-prevention.md`):** after **3 failed attempts on the same error class**, stop. Report to the user with the offending log line, the three approaches you tried, and why each failed. Do not thrash.
 
 ---
 
-## Step 4: Re-audit the ENTIRE file after any fix
+## Step 4: Re-audit what you touched, then report and stop
 
-One collision fix often reveals a second one nearby, or introduces a new label that now crowds a different object. After every change, re-run Passes 1–5 on **all** TikZ figures in the file — not just the one you just touched.
+One collision fix often reveals a second one nearby, or introduces a label that now crowds a different object. After your edits, re-run the passes **once** over the figures you actually modified — then report and stop.
 
 ```bash
-grep -c "tikzpicture" [file].tex
+grep -c "tikzpicture" [file].tex   # total figures, for the report
 ```
 
-That count is how many diagrams need a clean bill of health.
+**Do not loop the whole file to convergence.** Re-auditing every figure after every fix is quadratic in figure count and, on a document with many diagrams, will exhaust the session before it terminates. One bounded re-audit of the touched figures catches the cascading case; anything still outstanding belongs in the report as a finding for the user to direct, not in an unbounded repair loop.
 
 ---
 

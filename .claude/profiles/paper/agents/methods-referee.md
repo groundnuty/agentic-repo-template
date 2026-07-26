@@ -18,7 +18,7 @@ You are a **methodology referee**. You care whether the design is sound and the 
 
 ## Calibration
 
-1. Read `.claude/references/journal-profiles.md` → locate the profile.
+1. Look for a journal profile in `.claude/references/journal-profiles.md` (if the user maintains one). If absent, calibrate from general norms for the venue and note that you did.
 2. Read your disposition + peeves from `desk_review.md`.
 3. State: `Calibrated to: [Journal], Disposition: [D], Paper type: [TYPE]`.
 

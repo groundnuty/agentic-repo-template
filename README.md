@@ -55,15 +55,17 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 
 | Profile | Plugins | Rules | Skills | Agents | Hooks | Templates |
 |---|---:|---:|---:|---:|---:|---:|
-| `info` | 8 | 9 | 1 | — | — | 4 |
-| `research` | 9 | 13 | 1 | — | — | 4 |
-| `paper` | 9 | 17 | 9 | 5 | 2 | 5 |
-| `paper-latex` | 9 | 21 | 11 | 5 | 3 | 5 |
-| `code` | 9 | 13 | 1 | — | — | 4 |
+| `info` | 8 | 10 | 2 | — | 1 | 6 |
+| `research` | 9 | 14 | 2 | — | 1 | 6 |
+| `paper` | 9 | 18 | 10 | 5 | 4 | 8 |
+| `paper-latex` | 9 | 22 | 12 | 5 | 6 | 8 |
+| `code` | 9 | 14 | 2 | — | 1 | 6 |
+
+Hook counts include opt-in hooks shipped but not activated by default (reference them from `.claude/settings.local.json` to enable). `info` ships `git-guardrails.py`; `paper` adds `notify.sh` + `log-reminder.py`; `paper-latex` adds `verify-reminder.py`.
 
 ### What's common vs specific at a glance
 
-- **In all five profiles** (base + info): 8 plugins, 9 rules, 1 skill, 4 templates.
+- **In all five profiles** (base + info): 8 plugins, 10 rules, 2 skills (`permission-check`, `checkpoint`), 1 opt-in hook (`git-guardrails.py`), 6 templates.
 - **In four profiles** (`research` + `paper` + `paper-latex` + `code` — *not* `info`): 1 plugin (`context7`).
 - **In three profiles** (`research` + `paper` + `paper-latex`): 4 rules (`citation-discipline`, `reading-before-editing`, `pdf-processing`, `knowledge-work-structure`).
 - **In `paper` and `paper-latex`**: 4 rules (`humanize-prose`, `post-flight-verification`, `proofreading-protocol`, `cross-artifact-review`), 8 skills, 5 agents, 2 hooks, 1 template.
@@ -84,7 +86,7 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `elements-of-style@superpowers-marketplace` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `context7@claude-plugins-official` | — | ✓ | ✓ | ✓ | ✓ |
 
-### Rules (25 unique)
+### Rules (26 unique)
 
 | Rule | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
@@ -97,14 +99,15 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `exploration-folder-protocol.md` — `explorations/` lifecycle | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `meta-governance.md` — template vs working project, 2-tier memory | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `session-logging.md` — three-trigger logging discipline | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `prompt-shaping.md` — shape fuzzy asks before acting; surface only real decisions | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `citation-discipline.md` — never cite from memory | — | ✓ | ✓ | ✓ | — |
 | `reading-before-editing.md` — full read before research edits | — | ✓ | ✓ | ✓ | — |
-| `pdf-processing.md` — safe large-PDF chunked workflow | — | ✓ | ✓ | ✓ | — |
+| `pdf-processing.md` — read PDFs directly; split only oversized/corrupt | — | ✓ | ✓ | ✓ | — |
 | `knowledge-work-structure.md` — research/papers/input/insights/deliverables/questions layout | — | ✓ | ✓ | ✓ | — |
 | `humanize-prose.md` — how to use the humanizer skill | — | — | ✓ | ✓ | — |
 | `post-flight-verification.md` — Chain-of-Verification discipline | — | — | ✓ | ✓ | — |
 | `proofreading-protocol.md` — three-phase propose → approve → apply | — | — | ✓ | ✓ | — |
-| `cross-artifact-review.md` — paper review auto-invokes code review | — | — | ✓ | ✓ | — |
+| `cross-artifact-review.md` — paper review also reviews referenced scripts | — | — | ✓ | ✓ | — |
 | `latex-bibtex-discipline.md` — LaTeX + BibTeX conventions | — | — | — | ✓ | — |
 | `tikz-prevention.md` — 6-rule protocol for safe TikZ | — | — | — | ✓ | — |
 | `tikz-library-bundle.md` — canonical preamble + specialty packages | — | — | — | ✓ | — |
@@ -114,11 +117,12 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 | `testing-discipline.md` — TDD, 80% coverage, isolation | — | — | — | — | ✓ |
 | `verification-before-done.md` — "am I actually done?" gate | — | — | — | — | ✓ |
 
-### Skills (11 unique; invoke via `/<name>`)
+### Skills (12 unique; invoke via `/<name>`)
 
 | Skill | Source | info | research | paper | paper-latex | code |
 |---|---|:-:|:-:|:-:|:-:|:-:|
 | `permission-check` | pedrohcgs | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `checkpoint` | pedrohcgs — structured session handoff (state, pointers, next actions) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `humanizer` | [groundnuty/humanizer](https://github.com/groundnuty/humanizer) (git upstream, refreshable) | — | — | ✓ | ✓ | — |
 | `analyze-paper` | local (generalized from a ccgrid2026 paper repo) | — | — | ✓ | ✓ | — |
 | `verify-claims` | [pedrohcgs](https://github.com/pedrohcgs/claude-code-my-workflow) — CoVe via forked subagent | — | — | ✓ | ✓ | — |
@@ -142,15 +146,16 @@ Dispatched via `Task`/`Agent` subagents, not directly by the user. Format-agnost
 | `methods-referee.md` | pedrohcgs — methods/rigor review | — | — | ✓ | ✓ | — |
 | `domain-referee.md` | pedrohcgs — substantive review with disposition | — | — | ✓ | ✓ | — |
 
-### Hooks (3 unique — opt-in, reference from `settings.local.json` to enable)
+### Hooks (4 unique — opt-in, reference from `settings.local.json` to enable)
 
 | Hook | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
+| `git-guardrails.py` — deny destructive git (reset --hard, clean -f, force-push, blanket staging) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `notify.sh` — cross-platform desktop notification on session events | — | — | ✓ | ✓ | — |
 | `log-reminder.py` — stop-hook reminder to update session log | — | — | ✓ | ✓ | — |
 | `verify-reminder.py` — post-Edit reminder to compile/verify `.tex`/`.bib` files | — | — | — | ✓ | — |
 
-### Templates (5 unique)
+### Templates (7 unique)
 
 | Template | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
@@ -158,7 +163,10 @@ Dispatched via `Task`/`Agent` subagents, not directly by the user. Format-agnost
 | `constitutional-governance.md` — non-negotiables vs preferences | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `exploration-readme.md` — `explorations/` sandbox README | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `session-log.md` — session-log format | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `archive-readme.md` — archived-exploration README | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `quality-report.md` — check results, findings, what wasn't checked | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `journal-profile-template.md` — per-venue review calibration | — | — | ✓ | ✓ | — |
+| `response-to-referees.md` — R&R response letter scaffold | — | — | ✓ | ✓ | — |
 
 ### External requirements (documented, not shipped)
 

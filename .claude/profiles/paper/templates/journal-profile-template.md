@@ -2,7 +2,7 @@
 
 # Journal Profile Template
 
-Copy this block into `.claude/references/journal-profiles.md` (under the appropriate regional/field section) and fill in every field. Weights for the 6 dispositions must sum to 1.0.
+Copy this block into `.claude/references/journal-profiles.md` — **create that file if it doesn't exist yet; this template ships no profiles** — and fill in every field. Weights for the 6 dispositions must sum to 1.0.
 
 ```markdown
 ### Journal Full Name (SHORT)
@@ -74,6 +74,6 @@ For non-econ fields, add your own types to `.claude/agents/methods-referee.md` b
 
 ## Cross-references
 
-- `.claude/references/journal-profiles.md` — the live calibration file.
+- `.claude/references/journal-profiles.md` — the live calibration file you create from this template (optional; the review pipeline works without it).
 - `.claude/agents/editor.md` — reads profiles, draws referee dispositions.
 - `.claude/skills/review-paper/SKILL.md` — entry point for `--peer [SHORT]`.

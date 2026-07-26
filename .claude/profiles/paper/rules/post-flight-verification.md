@@ -3,7 +3,7 @@
 
 # Post-Flight Verification (anti-hallucination)
 
-Symmetric partner to **Pre-Flight Reports** (`.claude/rules/content-invariants.md` + skill-level `## Phase 0`). Where Pre-Flight proves inputs were read *before* work, Post-Flight proves the output's factual claims hold *after* drafting — before the skill returns to the user.
+The output-side counterpart to a **Pre-Flight** check (a skill's `## Phase 0`, which proves the inputs were actually read *before* work starts). Post-Flight proves the output's factual claims hold *after* drafting — before the skill returns to the user.
 
 **Adapted from:** Dhuliawala et al. 2023, "Chain-of-Verification Reduces Hallucination in Large Language Models" ([arXiv:2309.11495](https://arxiv.org/abs/2309.11495)). The **independence trick** — answer verification questions in a context that does not contain the original draft — is architecturally enforced here by running `claim-verifier` via `Task` with `context: fork`. The forked agent literally cannot self-confirm; it has never seen the draft.
 
@@ -101,6 +101,5 @@ Every skill that applies this rule must include a structured Post-Flight block i
 
 - `.claude/agents/claim-verifier.md` — the forked verifier.
 - `.claude/skills/verify-claims/SKILL.md` — user-facing wrapper for ad-hoc verification of any text.
-- `.claude/rules/content-invariants.md` — Pre-Flight (input side).
 - `.claude/rules/cross-artifact-review.md` — pattern-based; Post-Flight is draft-based.
 - `.claude/rules/summary-parity.md` — rule against enumerative summaries drifting from their bodies; Post-Flight is the factual equivalent for draft content.

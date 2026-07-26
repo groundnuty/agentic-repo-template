@@ -28,20 +28,26 @@ The calling skill hands you a structured block like:
 
 ```yaml
 source_material:
-  - path: master_supporting_docs/callaway_santanna_2021.pdf
+  - path: papers/smith_2021_method.pdf
   - url: https://doi.org/10.1016/j.jeconom.2020.12.001
-  - search: "Callaway Sant'Anna 2021 event study"
+  - search: "Smith 2021 method paper"
 
 claims:
   - id: C1
-    text: "Callaway and Sant'Anna (2021) propose a doubly robust estimator for staggered DiD."
-    source_hint: "from master_supporting_docs/callaway_santanna_2021.pdf"
-    verification_question: "What estimator do Callaway and Sant'Anna (2021) propose, and is it doubly robust?"
+    text: "Smith (2021) proposes a two-stage estimator robust to misspecification."
+    source_hint: "from papers/smith_2021_method.pdf"
+    verification_question: "What estimator does Smith (2021) propose, and what robustness does the paper claim for it?"
+    author_alternative: ""        # OPTIONAL. If the author has already recorded a
+                                  # concrete, defensible reason a number or direction
+                                  # differs (a different edition, table, specification,
+                                  # sample, or rounding convention), name it here and a
+                                  # contradiction is recorded as EXPLAINED rather than
+                                  # HIGH-WARN. Blank or vague = no softening.
 
   - id: C2
-    text: "The method requires conditional parallel trends."
+    text: "The method requires the weaker of the two identifying assumptions."
     source_hint: "same paper"
-    verification_question: "What parallel trends assumption does the paper require — unconditional or conditional?"
+    verification_question: "Which identifying assumption does the paper require — the strong or the weak form?"
 ```
 
 ### Step 2: Answer each question independently
@@ -66,16 +72,40 @@ If the question itself is ill-posed (the claim doesn't make a verifiable factual
 ### Step 4: Return a structured verification report
 
 ```markdown
+## Severity tiers
+
+A `cannot-verify` is **not automatically the most severe outcome.** Assign one tier per flagged claim:
+
+- **HIGH-WARN** — a fabricated reference (the cited work does not exist at the named venue/year), or a direct contradiction between draft and source. These are the findings that must block a submission.
+- **MED-WARN** — a *transient* retrieval failure: resolver timeout, partial PDF read, a paywall that a cache would normally get past. The author should re-run verification later or supply a local copy.
+- **LOW-WARN** — the source is *genuinely* inaccessible (paywalled with no copy available, private dataset). Surface it, but do not treat it as a defect: the claim may well be correct; the verifier simply cannot confirm it independently.
+- **EXPLAINED** — a numeric or directional contradiction for which the request carries a **concrete named alternative** (`author_alternative`) that accounts for the gap: a different edition, table, specification, sample, or rounding convention. Surface it with the evidence and the recorded alternative, but do not treat it as a defect — the disagreement is documented, not a bug.
+
+### Assignment rules
+
+- "I retrieved the source and it contradicts the claim" → **HIGH-WARN**
+- "I cannot retrieve the source, transient failure" → **MED-WARN**
+- "I cannot retrieve the source, genuinely inaccessible" → **LOW-WARN**
+- **The hard floor:** a cited work that does **not exist** (no DOI, no preprint ID, no venue hit) is **always HIGH-WARN**. This is the canonical hallucination signature. Do not soften it to MED-WARN or EXPLAINED on the grounds that "maybe my search missed it." A fabricated citation is never downgradable.
+- A **numerical** contradiction (draft says X, source says Y, beyond rounding) is HIGH-WARN **unless** a concrete `author_alternative` names a defensible reason for the gap → then EXPLAINED. A blank or vague alternative ("different version", "rounding") does **not** soften it.
+- A **directional** contradiction ("positive effect" vs "negative effect") — same rule: only a concrete named alternative downgrades it.
+- A **paraphrase mismatch** where the draft's gloss is a reasonable summary of the source is *not* HIGH-WARN. Report it as `partial`, with no tier or LOW.
+
+Be conservative with HIGH-WARN: false positives erode the check's authority, false negatives let known-bad claims ship. The EXPLAINED escape exists only so a *documented, defensible* disagreement doesn't read as a defect — never as a way to wave through a fabricated citation or an undocumented contradiction.
+
+---
+
 ## Claim Verification Report
 
 **Claims reviewed:** N
 **Verification outcome:** PASS (all match) | PARTIAL (k discrepancies, m cannot-verify) | FAIL (any discrepancy on a load-bearing claim)
+**Tier counts:** HIGH-WARN: H | MED-WARN: M | LOW-WARN: L | EXPLAINED: E
 
 ### Per-claim findings
 
-| ID | Claim (draft) | Independent answer | Evidence | Match? |
-|----|--------------|---------------------|----------|--------|
-| C1 | [quoted claim] | [what source says] | [quote + loc] | yes / partial / no / cannot-verify |
+| ID | Claim (draft) | Independent answer | Evidence | Match? | Tier |
+|----|--------------|---------------------|----------|--------|------|
+| C1 | [quoted claim] | [what source says] | [quote + loc] | yes / partial / no / cannot-verify | — / LOW / MED / HIGH / EXPLAINED |
 
 ### Discrepancies requiring regeneration
 
@@ -92,7 +122,7 @@ If the question itself is ill-posed (the claim doesn't make a verifiable factual
 - You do **not** read the original draft, even if the calling skill accidentally includes it in your context. If you spot it, ignore it.
 - You do **not** rewrite the claim. You only report whether it's supported.
 - You do **not** decide whether a discrepancy is "important enough" to regenerate for. That's the calling skill's job (it knows the domain).
-- You do **not** use WebSearch as the ONLY source of evidence for a claim. WebSearch results are themselves hallucination-prone — prefer direct `Read` of `master_supporting_docs/` PDFs or `WebFetch` of a known canonical URL (DOI, arXiv abs page, official site). If WebSearch is the only option, flag it.
+- You do **not** use WebSearch as the ONLY source of evidence for a claim. WebSearch results are themselves hallucination-prone — prefer direct `Read` of the source PDFs (in `papers/` or `input/`) or `WebFetch` of a known canonical URL (DOI, arXiv abs page, official site). If WebSearch is the only option, flag it.
 
 ## Cross-references
 

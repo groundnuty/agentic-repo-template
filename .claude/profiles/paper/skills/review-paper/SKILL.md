@@ -19,10 +19,10 @@ Produce a thorough, constructive review of an academic manuscript — the kind o
 > - **`/respond-to-referees`** — if you already have referee comments and need a response document, not another review.
 > - **`/slide-excellence`** — for lecture slides, not papers.
 
-**Input:** `$ARGUMENTS` — path to a paper (`.tex`, `.pdf`, or `.qmd`), or a filename in `master_supporting_docs/`. Optional flags:
+**Input:** `$ARGUMENTS` — path to a paper (`.tex`, `.md`, `.pdf`, `.docx`, `.qmd`, …), or a bare filename to resolve against the project's document directories. Optional flags:
 
-- `--adversarial` — critic-fixer loop (max 5 rounds).
-- `--peer <JOURNAL>` — simulated peer review pipeline calibrated to `<JOURNAL>` (see `.claude/references/journal-profiles.md` for available short names).
+- `--adversarial` — critic-fixer loop; runs until a round turns up nothing new (fallback cap: 5 rounds).
+- `--peer <JOURNAL>` — simulated peer review pipeline calibrated to `<JOURNAL>`. If you maintain `.claude/references/journal-profiles.md` (built from `.claude/templates/journal-profile-template.md`), profiles there are used; otherwise the pipeline calibrates from general norms for the venue.
 - `--r2` / `--r3` — R&R continuation mode (requires `--peer`). Reloads prior round, classifies concerns Resolved / Partial / Not addressed.
 - `--stress` — hostile-editor stress test (requires `--peer`). Forces SKEPTIC dispositions, doubles critical peeves.
 - `--no-novelty-check` — skip editor's WebSearch novelty probe (default is ON).
@@ -40,13 +40,13 @@ One comprehensive review report. Fast, low token cost, suitable for early drafts
 
 ### Adversarial mode (`--adversarial`)
 
-Iterative critic-fixer loop modeled on [`/qa-quarto`](../qa-quarto/SKILL.md). The critic identifies issues, the fixer proposes and applies edits (with user approval), and the critic re-audits. Loops until APPROVED or max 5 rounds.
+Iterative critic-fixer loop. The critic identifies issues, the fixer proposes and applies edits (with user approval), and a fresh-context critic re-audits. The loop runs **until dry** — until a round adds no new concerns — with a fallback round cap so a non-converging loop still terminates.
 
 Use when: preparing a pre-submission draft, responding to a journal-desk rejection with substantive revisions, or after your own major rewrite. Costs more tokens but produces a manuscript the critic has signed off on.
 
 ### Peer-review mode (`--peer <JOURNAL>`)
 
-Simulated editorial pipeline: **editor desk review → referee selection → 2 blind referees with different dispositions → editorial synthesis**. Calibrated to a target journal from `.claude/references/journal-profiles.md`. Use when: pre-submission dress rehearsal, choosing between target journals, R&R planning.
+Simulated editorial pipeline: **editor desk review → referee selection → 2 blind referees with different dispositions → editorial synthesis**. Calibrated to a target journal (from your `.claude/references/journal-profiles.md` if present, else general venue norms). Use when: pre-submission dress rehearsal, choosing between target journals, R&R planning.
 
 This mode is materially different from `--adversarial`: adversarial runs the same critic 5× with fresh context; `--peer` runs **different personas** (editor + 2 dispositioned referees drawn from 6-way taxonomy: STRUCTURAL / CREDIBILITY / MEASUREMENT / POLICY / THEORY / SKEPTIC) whose priors are *deliberately different* and who are blind to each other.
 
@@ -69,10 +69,10 @@ This mode is materially different from `--adversarial`: adversarial runs the sam
 
 1. **Locate and read the manuscript.** First strip flags (`--adversarial`, `--no-cross-artifact`) from `$ARGUMENTS` to get the bare manuscript path. Check:
    - Direct path (bare path from step 1)
-   - `master_supporting_docs/supporting_papers/$ARGUMENTS`
+   - `papers/$ARGUMENTS` and `input/$ARGUMENTS` (per `knowledge-work-structure.md`)
    - Glob for partial matches
 
-2. **Read the full paper** end-to-end. For long PDFs, read in chunks (5 pages at a time).
+2. **Read the full paper** end-to-end. For long PDFs, page through with the Read tool's `pages` parameter (up to 20 pages per request) — no pre-splitting needed. See `.claude/rules/pdf-processing.md`.
 
 3. **Evaluate across 6 dimensions** (see below).
 
@@ -82,7 +82,7 @@ This mode is materially different from `--adversarial`: adversarial runs the sam
 
 6. **Save to** `.claude/session-reports/paper_review_[sanitized_name]_round[N].md` (N=1 in default mode; N increments in adversarial mode).
 
-6b. **Cross-artifact integration.** Unless `$ARGUMENTS` contains `--no-cross-artifact`, and if the manuscript references analysis scripts (detected via `\input{scripts/...}`, `%% source:` comments, or matching `scripts/R/_outputs/` filenames), auto-invoke:
+6b. **Cross-artifact integration.** Unless `$ARGUMENTS` contains `--no-cross-artifact`, and if the manuscript references analysis scripts (detected via `\input{scripts/...}`, `%% source:` comments, or filenames matching the analysis-outputs directory), auto-invoke:
    - a code review of each referenced script — read it and check it actually produces the claimed outputs (forked subagent, results to `.claude/session-reports/cross_artifact_[paper]/review_[script].md`)
    - `/audit-reproducibility` on the manuscript + outputs dir (results to `.claude/session-reports/cross_artifact_[paper]/reproducibility.md`)
 
@@ -219,7 +219,7 @@ These are the tough questions a top referee would likely raise:
 
 **Only runs if `--adversarial` is in `$ARGUMENTS`.**
 
-Pattern adapted from [`/qa-quarto`](../qa-quarto/SKILL.md), which uses the same loop to iterate on slide quality. Papers get it now because the single-pass review leaves authors doing manual fix-and-resubmit cycles.
+A **loop-until-dry** critic-fixer pattern: the critic emits typed findings, the fixer applies approved edits, a fresh-context critic re-audits, and the loop ends when a round surfaces nothing new. Papers get it because the single-pass review leaves authors doing manual fix-and-resubmit cycles.
 
 ### Flow
 
@@ -232,8 +232,9 @@ Phase 0: Pre-flight
 Phase 1: Critic audit (round N=1,2,3,...)
   │
   ├─ Run the default review above, producing a round-N report
-  ├─ If the report has ZERO Major Concerns and ZERO Referee Objections
-  │  rated "fatal":
+  ├─ Diff round N's concerns against every prior round (dedup key:
+  │  location + finding). If the round adds ZERO new CRITICAL/MAJOR
+  │  concerns and ZERO new "fatal" Referee Objections:
   │     → VERDICT = APPROVED. Stop the loop. Write final summary.
   │  Else: continue.
   │
@@ -257,18 +258,32 @@ Phase 3: Re-audit
      → Jump back to Phase 1.
 ```
 
-### Iteration limits
+### Iteration limits — loop-until-dry
 
-- **Max 5 rounds.** After round 5, halt regardless of verdict.
-- **Fix round limits:** if the same Concern label appears in rounds N and N+2, flag as "author disagreement" and let the user decide (keep-as-is with rationale vs. another fix attempt).
-- **Budget escape:** if token cost across all rounds exceeds ~200k, warn and let the user cap further rounds.
+The loop is **not** a fixed round count. Each critic round returns typed findings —
+
+```yaml
+findings:
+  - severity: CRITICAL | MAJOR | MINOR
+    location: <section, page, table, or line>
+    finding: <one sentence — what is wrong>
+    evidence: <quote or number lifted from the manuscript>
+    change_my_mind: <what would make this concern go away>
+```
+
+— and the loop **converges when a round adds 0 new CRITICAL/MAJOR concerns**, deduped on `location` + `finding`. A round that only restates concerns already on the table is a converged round, even if the raw count is non-zero.
+
+- **Convergence (the normal exit):** APPROVED once a round adds no new CRITICAL/MAJOR concerns and no new fatal Referee Objections.
+- **Fallback cap:** 5 rounds bounds a loop that refuses to converge. After round 5, halt and list what remains. This is a backstop, not the expected ending — if you routinely hit it, the manuscript needs a rewrite, not another round.
+- **Two-strikes:** if the same Concern label appears in rounds N and N+2, flag as "author disagreement" and let the user decide (keep-as-is with rationale vs. another fix attempt).
+- **Budget escape:** if cumulative token cost across rounds exceeds ~200k, warn and let the user cap further rounds. This is a spend ceiling, not a context-window limit — each re-audit runs in fresh context.
 
 ### Stopping criteria
 
 | Condition | Action |
 |---|---|
-| Zero Major Concerns, zero fatal Referee Objections | APPROVED — final summary |
-| Max 5 rounds reached | HALTED — list remaining concerns, user decides |
+| Round adds 0 new CRITICAL/MAJOR concerns and 0 new fatal Referee Objections | APPROVED (converged) — final summary |
+| Fallback cap (5 rounds) reached without converging | HALTED — list remaining concerns, user decides |
 | User approves zero fixes in a round | HALTED — user signals "I disagree with this review" |
 | Compile fails after applied fixes | ROLLED BACK to pre-round-N snapshot, report compile error, user decides |
 
@@ -280,7 +295,7 @@ After the loop ends, write `.claude/session-reports/paper_review_[sanitized_name
 # Final Review: [Paper Title]
 
 **Rounds:** N
-**Verdict:** APPROVED | HALTED (max rounds) | HALTED (user override) | ROLLED BACK
+**Verdict:** APPROVED (converged) | HALTED (fallback cap) | HALTED (user override) | ROLLED BACK
 **Token cost estimate:** ~XXk
 
 ## Round Summary
@@ -331,19 +346,19 @@ Opt-out: `--no-novelty-check` already skips the probe entirely. If the probe run
 ## Pre-Flight Report — /review-paper --peer
 
 **Manuscript:** [path] — [page count, last modified]
-**Target journal:** [JOURNAL_SHORT] → [full name from `.claude/references/journal-profiles.md`]
-**Journal profile loaded:** [yes/no; resolved from `.claude/references/journal-profiles.md`; key adjustments: e.g., "Identification 35 → 40"]
+**Target journal:** [JOURNAL_SHORT] → [full name]
+**Journal profile loaded:** [yes — from `.claude/references/journal-profiles.md`, key adjustments; or no — calibrated from general venue norms]
 **Cross-artifact scripts found:** [list referenced .R / .py / .do files]
 **Reproducibility status:** [PASS / FAIL from Phase 0] — [N of M claims within tolerance]
 **Round:** [fresh / r2 / r3 / stress]
 ```
 
-If the manuscript path doesn't exist, the target journal isn't in `.claude/references/journal-profiles.md`, or a cross-artifact script is missing, stop and surface the issue before proceeding.
+If the manuscript path doesn't exist or a referenced cross-artifact script is missing, stop and surface the issue before proceeding. A missing journal profile is **not** a stop condition — calibrate from general venue norms and note it.
 
 ### Phase 1: Editor desk review
 
 Spawn forked subagent `editor` with the manuscript path and `--peer <JOURNAL>` context. Editor:
-- Reads journal profile from `.claude/references/journal-profiles.md` → states "Calibrated to: [journal]".
+- Loads the journal profile if `.claude/references/journal-profiles.md` exists → states "Calibrated to: [journal]" (or notes calibration from general venue norms).
 - Reads abstract + intro + methods overview + headline results.
 - Runs novelty probes (unless `--no-novelty-check`).
 - Either **DESK REJECT** (pipeline terminates with rejection letter) or **SEND OUT**.
@@ -362,9 +377,11 @@ Spawn in parallel:
 
 Each referee must include "What would change my mind: [specific ask]" on every MAJOR concern.
 
-### Phase 3: Editor synthesis
+### Phase 3: Editor synthesis (reduce → judge, with the hallucination gate)
 
-Read both referee reports. Classify each MAJOR concern as FATAL / ADDRESSABLE / TASTE. Produce editorial decision using the decision rule table in `editor.md`.
+Read both referee reports. **Reduce** their findings: classify each MAJOR concern as FATAL / ADDRESSABLE / TASTE, then produce the editorial decision using the decision rule table in `editor.md`. The decision is a function of what the referees found — the editor is a reducer, not a third referee.
+
+**Post-judge hallucination gate.** The editor may **not** desk-reject or escalate the decision on a CRITICAL reason **neither referee raised**. Any editor-introduced blocker that is not traceable to a referee finding must either be re-verified in a fresh `claim-verifier` fork (`Task` with `subagent_type=claim-verifier` and `context=fork`, which has never seen the referee reports and so cannot self-confirm), or be dropped, labeled `[JUDGE-HALLUCINATED]` in the decision letter, and the decision recomputed without it. The gate is one-directional: the editor may always downgrade, de-duplicate, or reclassify a referee's concern. See [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md).
 
 Report: `.claude/session-reports/peer_review_[paper]/editorial_decision.md`.
 
@@ -396,7 +413,7 @@ Tell the user:
 
 ## Field adaptation
 
-The shipped `journal-profiles.md` covers 5 econ journals (AER, QJE, JPE, ECMA, ReStud). For other fields (finance, political science, biology, CS, etc.), copy `templates/journal-profile-template.md` into a new section of `journal-profiles.md` and fill in the schema. See the "Field adaptation" section at the end of `journal-profiles.md` for detailed guidance. The pipeline itself is field-agnostic; only the calibration data changes.
+This template ships **no** journal profiles — the pipeline is field-agnostic and calibrates from general venue norms out of the box. To pin the calibration for venues you submit to, copy `.claude/templates/journal-profile-template.md`, fill in the schema, and save the result as `.claude/references/journal-profiles.md`. Only the calibration data is field-specific; the pipeline is not.
 
 For non-econ paper types in `methods-referee.md`, extend the paper-type list (e.g., biology: `observational / experimental / computational / review`).
 

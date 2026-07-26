@@ -77,16 +77,23 @@ The forked agent runs the CoVe independent-answer step. It has never seen the dr
 
 Based on the report:
 
-- **PASS** (all claims match source): produce a green Post-Flight block and return.
-- **PARTIAL** (unverifiable claims remain): produce a yellow block flagging which claims need manual review.
-- **FAIL** (at least one contradiction): produce a red block listing discrepancies with evidence. If the draft is writeable and the user asked for auto-correction, regenerate the affected sections using the verifier's evidence. Otherwise return the report and let the user decide.
+Aggregate from the verifier's per-claim **severity tiers** (defined in `.claude/agents/claim-verifier.md`) — a `cannot-verify` is not automatically a failure:
+
+| Highest tier present | Outcome | What to do |
+|---|---|---|
+| none | **PASS** | Green Post-Flight block; return. |
+| LOW-WARN / EXPLAINED only | **PASS (with notes)** | Green block, listing the inaccessible sources and any documented alternatives. These are not defects. |
+| MED-WARN | **PARTIAL** | Yellow block. Name the transient failures and recommend re-running verification or supplying local copies. |
+| HIGH-WARN | **FAIL** | Red block listing each contradiction with evidence. If the draft is writeable and the user asked for auto-correction, regenerate the affected sections using the verifier's evidence. Otherwise return the report and let the user decide. |
+
+A fabricated citation is always HIGH-WARN and therefore always FAIL — it is never downgraded, whatever else the run found.
 
 Respect `--no-fail-closed`: on FAIL, produce the warning but do not regenerate.
 
 ## Example
 
 ```
-/verify-claims .claude/session-reports/lit-review_staggered-did.md --source master_supporting_docs/callaway_santanna_2021.pdf --source master_supporting_docs/dechaisemartin_dhaultfoeuille_2020.pdf
+/verify-claims .claude/session-reports/lit-review_topic.md --source papers/smith_2021_method.pdf --source papers/jones_2020_survey.pdf
 ```
 
 Expected output (abridged):
@@ -121,6 +128,17 @@ Expected output (abridged):
 **Source material inaccessible** (paywall, 404): report the specific claims that hinge on it, flag as `cannot-verify`, recommend user supply an alternative source.
 
 **Draft contains only opinions / forward-looking text:** report "no verifiable factual claims extracted — nothing to check" and return.
+
+## Relationship to `/validate-bib`
+
+The two checks are complementary and neither substitutes for the other:
+
+- **`/validate-bib`** (paper-latex profile) checks that citations **exist** and are well-formed — entry present, DOI resolves, no missing or unused keys.
+- **`/verify-claims`** checks that the citations **hold** — that what the draft *says about* a source is actually what the source says. "Smith (2019) shows a positive effect" becomes `{cite: Smith2019, attributed: "positive effect"}`, and the verifier independently answers whether that attribution survives contact with the paper.
+
+A citation can pass `/validate-bib` (the paper is real, the DOI resolves) and still fail `/verify-claims` (the paper says the opposite of what you claimed).
+
+---
 
 ## Cross-references
 

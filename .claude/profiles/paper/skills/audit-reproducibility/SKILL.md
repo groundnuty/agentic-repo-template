@@ -1,7 +1,7 @@
 ---
 name: audit-reproducibility
-description: Enforce the replication-protocol.md rule by cross-checking numeric claims in a manuscript against the actual R / Stata / Python outputs. Report PASS/FAIL per claim against tolerance thresholds. Use before submission and before releasing a replication package.
-argument-hint: "[manuscript path] [outputs-dir] (outputs-dir defaults to scripts/R/_outputs/)"
+description: Cross-check numeric claims in a manuscript against the actual outputs produced by the analysis pipeline. Report PASS/FAIL per claim against tolerance thresholds. Use before submission and before releasing a replication package.
+argument-hint: "[manuscript path] [outputs-dir] (outputs-dir defaults to the project's analysis-outputs directory)"
 allowed-tools: ["Read", "Grep", "Glob", "Write", "Bash", "Task"]
 effort: high
 ---
@@ -11,7 +11,7 @@ effort: high
 
 # Audit Reproducibility
 
-Compare numeric claims in a manuscript (point estimates, standard errors, p-values, counts) against the actual outputs produced by the analysis pipeline. Report PASS / FAIL per claim against the tolerance thresholds defined in [`.claude/rules/replication-protocol.md`](../../rules/replication-protocol.md).
+Compare numeric claims in a manuscript (point estimates, standard errors, p-values, counts) against the actual outputs produced by the analysis pipeline. Report PASS / FAIL per claim against the tolerance thresholds in Phase 4 below.
 
 **Core principle:** If the paper says `ATT = -1.632 (0.584)` and the code produces `-1.628 (0.591)`, we verify — **numerically** — that the difference is within the documented tolerance. No more "looks close enough" eyeballing.
 
@@ -25,15 +25,15 @@ Compare numeric claims in a manuscript (point estimates, standard errors, p-valu
 ## Inputs
 
 - `$0` — path to the manuscript (`.tex`, `.qmd`, `.md`, `.pdf`). Required.
-- `$1` — path to the outputs directory. Defaults to `scripts/R/_outputs/`. Can be `_targets/objects/`, a Stata `.do`-file log directory, etc.
+- `$1` — path to the analysis-outputs directory: wherever your pipeline writes its results (e.g. `scripts/_outputs/`, `results/`, `output/`, a build cache, a log directory). If unset, infer it from the project layout and say which directory you chose.
 
 ## Workflow
 
 ### Phase 0: Pre-flight
 
-1. Read [`replication-protocol.md`](../../rules/replication-protocol.md) for the tolerance thresholds currently in effect.
-2. Verify the outputs directory exists and is non-empty. If empty or stale (older than the manuscript), prompt the user to re-run their pipeline (e.g., `Rscript scripts/R/00_run_all.R`) before auditing.
-3. Ensure a `sessionInfo.txt` or equivalent environment capture exists in the outputs dir.
+1. Note the tolerance thresholds in Phase 4. If the project defines its own tolerances (in `.claude/rules/project-conventions.md` or a project replication protocol), those override the defaults.
+2. Verify the outputs directory exists and is non-empty. If empty or stale (older than the manuscript), prompt the user to re-run their analysis pipeline before auditing.
+3. Ensure an environment capture exists in the outputs dir if the project produces one (e.g. a dependency lockfile, a `sessionInfo`/`pip freeze`/`conda env export` dump). Note its absence rather than failing on it.
 
 ### Phase 1: Extract claims from the manuscript
 
@@ -75,7 +75,7 @@ Record each extracted result:
 
 ```
 {
-  source: "scripts/R/_outputs/results.rds",
+  source: "<outputs-dir>/results.<ext>",
   lookup_key: "fit_main$coefficients['treated']",
   value: -1.628,
   uncertainty: 0.591,
@@ -95,7 +95,7 @@ For every claim, produce a match candidate with a confidence score. Claims below
 
 ### Phase 4: Tolerance check
 
-For each matched claim, apply the thresholds from `replication-protocol.md`:
+For each matched claim, apply these thresholds (defaults — a project may override them in `.claude/rules/project-conventions.md`):
 
 | Kind | Tolerance | Example |
 |---|---|---|
@@ -105,7 +105,7 @@ For each matched claim, apply the thresholds from `replication-protocol.md`:
 | P-values | Same significance level | p<0.01 and p<0.01 → PASS; p<0.01 and p=0.03 → FAIL |
 | Percentages | ±0.1pp | 42.3% vs 42.35% → PASS |
 
-Respect any **tolerance overrides** the user has written into their `replication-protocol.md` fork (they may loosen for MC noise or tighten for administrative data).
+Respect any **tolerance overrides** the project defines (loosened for simulation noise, tightened for administrative data, etc.).
 
 ### Phase 5: Report
 
@@ -117,7 +117,7 @@ Write `.claude/session-reports/reproducibility_audit_[manuscript-name].md`:
 **Date:** [YYYY-MM-DD]
 **Manuscript:** [path]
 **Outputs directory:** [path]
-**Tolerance source:** .claude/rules/replication-protocol.md
+**Tolerance source:** skill defaults (Phase 4), plus any project overrides
 
 ## Summary
 
@@ -142,7 +142,7 @@ Write `.claude/session-reports/reproducibility_audit_[manuscript-name].md`:
 |---|---|---|
 
 ## Environment
-[sessionInfo excerpt]
+[environment capture excerpt, if the project produces one]
 
 ## Next steps
 1. Fix any FAIL rows — either update the manuscript or rerun analysis.
@@ -153,12 +153,11 @@ Write `.claude/session-reports/reproducibility_audit_[manuscript-name].md`:
 ## Exit behavior
 
 - **All PASS:** exit 0, summary printed.
-- **Any FAIL:** exit 1, summary printed to stderr. This makes the skill usable as a `/commit` pre-commit gate — see `replication-protocol.md` for the enforcement pattern.
+- **Any FAIL:** exit 1, summary printed to stderr. This makes the skill usable as a pre-commit gate.
 - **UNMATCHED > 0 (with 0 FAIL):** exit 0 with warning — user must manually review.
 
 ## Cross-references
 
-- [`.claude/rules/replication-protocol.md`](../../rules/replication-protocol.md) — the tolerance contract.
 - `.claude/rules/cross-artifact-review.md` — the code review of referenced scripts; this skill catches NUMERICAL reproducibility.
 - [`.claude/skills/review-paper/SKILL.md`](../review-paper/SKILL.md) — content review; pair with this skill for a full pre-submission audit.
 
@@ -166,4 +165,4 @@ Write `.claude/session-reports/reproducibility_audit_[manuscript-name].md`:
 
 - **Re-run your analysis.** The skill compares CURRENT outputs against manuscript claims. If the outputs are stale, re-run your pipeline first (the pre-flight phase will warn).
 - **Catch wrong specifications.** A regression that compiles cleanly and produces a reproducible `-1.632` is reproducible. Whether `-1.632` is the RIGHT estimand is a `review-paper` / domain-reviewer question.
-- **Check external package versions.** The `sessionInfo.txt` capture lets a reviewer see the env; pinning versions is on the user (via `renv.lock` or a `DESCRIPTION` file).
+- **Check dependency versions.** An environment capture lets a reviewer see what produced the numbers; pinning versions is on the user (a lockfile — `renv.lock`, `requirements.txt`, `poetry.lock`, `Manifest.toml`, whatever the stack uses).

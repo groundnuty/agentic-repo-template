@@ -6,42 +6,66 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
-## [v0.1.16] — 2026-06-10
+---
 
-Fix: every new Claude Code session on a template-initialized repo printed a `/doctor` warning that `permissions.allow["mcp__*"]` was rejected. Wildcarding the entire MCP namespace in allow rules is intentionally disallowed by Claude Code (security: prevents prompt-injection-via-MCP-response from auto-executing tools from arbitrary unknown servers). Allow rules must name a literal server prefix; wildcards are only legal in the tool position after `mcp__<server>__`.
+## [v0.1.22] — 2026-07-25
 
-### What changed
+**Upstream audit release.** First systematic re-audit of the content vendored from [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) (April 2026) and [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools). Fixes three real bugs in shipped content, resolves six dead cross-references, adds two upstream logic improvements, and ships three new generic pieces. No breaking changes.
 
-- **Dropped `"mcp__*"`** from base `.claude/settings.json` `permissions.allow`. Claude Code was already skipping the invalid rule — the only functional change is the `/doctor` warning goes away.
-- **Added enumerated allow entries** for all claude.ai-hosted MCP connectors observed in use (15 servers): `mcp__claude_ai_{Gmail,PubMed,bioRxiv,Scholar_Gateway,Asana,Atlassian,Box,Canva,Consensus,Figma,HubSpot,Intercom,Linear,Notion,monday_com}__*`. These auto-allow without prompt — the connectors are user-account-controlled (you enable them in claude.ai settings), so trusting their tools matches user intent.
-- **Added the context7 plugin MCP**: `mcp__plugin_context7_context7__*`. Matches `enabledPlugins["context7@claude-plugins-official"]` (which we ship in research / paper / paper-latex / code profiles since v0.1.15).
-- **Added two built-in MCP introspection tools** as bare names: `ListMcpResourcesTool`, `ReadMcpResourceTool`. Read-only, safe.
+### Bugs fixed in content we were already shipping
 
-### What stays unchanged
+1. **`pdf-processing.md` told Claude the wrong thing.** It instructed *"Claude DOES NOT attempt to read it directly"* and mandated Ghostscript pre-splitting — false since the Read tool gained native PDF support with a `pages` parameter. Every research/paper session was being told to shell out before reading any paper. Now defaults to a direct read, with splitting demoted to a fallback for oversized or corrupt files. (Upstream fixed this on 2026-05-31; we were shipping the pre-fix version.)
+2. **`log-reminder.py` was half-dead.** Introduced by our own generalization pass, not upstream: the lookup used `quality_reports/session_logs` while the user-facing message said `.claude/session-reports/`. That directory never exists here, so the staleness check could **never** fire. One-line fix.
+3. **`/tikz` had an unreachable exit condition.** Step 3 gated on `pdflatex … | grep -E "Overfull|Underfull|Error|Warning"` returning **zero lines** — unachievable on any real manuscript, where bibliography and font warnings are always present, so the skill would thrash. The gate is now "no *new* warnings vs. a baseline," with the 3-strikes circuit breaker from `tikz-prevention.md`. Step 4's unbounded whole-file re-audit (quadratic in figure count) is now a single bounded re-audit of touched figures.
 
-- **Custom and third-party MCP servers** are NOT pre-allowed. If you use them, add per-server entries to your gitignored `.claude/settings.local.json`:
-  ```json
-  {
-    "permissions": {
-      "allow": [
-        "mcp__my_custom_server__*"
-      ]
-    }
-  }
-  ```
-- **The `mcp__<server-wildcard>__*` shape is rejected** by Claude Code. You can't say "any MCP server" — must enumerate.
+### Six dead cross-references resolved
 
-### Migration
+Vendored content referenced files that only exist in the upstream repo. The worst: **`editor.md` instructed a hard `STOP`** if `.claude/references/journal-profiles.md` was missing — a file this template has never shipped — so `/review-paper --peer` halted on first use in a fresh repo, by design. The peer pipeline now calibrates from general venue norms when no profile exists and says so.
 
-Existing v0.1.x repos: edit `.claude/settings.json` and remove the line `"mcp__*",` from `permissions.allow`. Optionally add the enumerated list above. Or re-init from v0.1.16.
+- `references/journal-profiles.md` → graceful degradation (also corrected a claim that we ship 5 econ journal profiles; we ship none)
+- `rules/replication-protocol.md` → tolerances were already inlined in the skill; references now point there
+- `rules/content-invariants.md` → removed (that file was deleted in v0.1.13/D34)
+- `templates/response-to-referees.md`, `templates/archive-readme.md`, `templates/quality-report.md` → **now shipped** as real templates
+
+### Upstream logic improvements adopted
+
+- **`claim-verifier` severity tiers.** A `cannot-verify` is no longer treated uniformly: contradicted-by-source → HIGH-WARN, transient retrieval failure → MED-WARN, genuinely inaccessible → LOW-WARN, and a new **EXPLAINED** disposition for a contradiction the author has documented with a concrete alternative. The hard floor: **a cited work that does not exist is always HIGH-WARN and is never downgradable** — the canonical hallucination signature. `/verify-claims` aggregates tier-aware, and now documents how it differs from `/validate-bib` (existence vs. appropriateness).
+- **Synthesis discipline in `/seven-pass-review` and `/review-paper`.** "Reduce, don't re-review": the executive verdict is a function of the typed lens findings, not a fresh eighth opinion. Plus a **post-judge hallucination gate** — any CRITICAL the synthesis introduces that *no lens raised* must be re-verified in a fresh `claim-verifier` fork or dropped as `[JUDGE-HALLUCINATED]` with the verdict recomputed. `/review-paper --adversarial` now runs **loop-until-dry** (converges when a round adds 0 new CRITICAL/MAJOR, deduped on location+finding) instead of a fixed 5-round cap.
+
+### New
+
+- **`git-guardrails.py`** (opt-in hook, all profiles) + five new deny rules. `git reset --hard` and `git clean -fdx` were **completely unguarded** before this release. The hook additionally catches forms that literal deny patterns cannot: `git -C /repo reset --hard`, `git -c k=v clean -fd`. Allows `--force-with-lease`, `clean -n`, `reset --soft`.
+- **`prompt-shaping.md`** (rule, all profiles) — shape a fuzzy request into Role/Task/Context/Constraints/Output before acting, silently; surface only the genuine decision.
+- **`checkpoint`** (skill, all profiles) — structured session handoff (state, file pointers with line numbers, next 1–3 actions) written to `.claude/session-reports/`. The structured counterpart to the narrative session log.
+
+### Domain-specific paths generalized
+
+Swept upstream's R/Stata/Quarto/Beamer specifics out of the vendored files: `master_supporting_docs/`, `scripts/R/_outputs/`, `renv.lock`/`sessionInfo.txt` as *the* environment capture, `Slides/*.tex`, `Quarto/*.qmd`, and the DiD worked examples in `claim-verifier`/`verify-claims`. The paper profiles are now genuinely language-agnostic; `papers/` and `input/` (per `knowledge-work-structure.md`) replace the upstream document paths.
+
+### Not adopted, deliberately
+
+- **MixtapeTools' `/tikz` rewrite.** Upstream replaced the six-pass repair tool with a three-check reporter (260 → 166 lines). It drops the audit-side enforcement of prevention rules P1–P4 — upstream could afford that because they moved enforcement into `beautiful_deck`, which we don't ship — and it inverts the skill's founding premise from "Claude cannot reliably eyeball TikZ collisions" to "read the image, Claude is multimodal." We took the good parts (visual mode as an explicit *fallback* for rasters with no source, the toolchain fix tables, the bounded loop) and kept measurement as the default.
+- **`audit-reproducibility`'s upstream diff** (113 lines) — the most domain-drenched change in the set (`haven::read_dta`, `reghdfe` vs `feols`, `_targets/`, a passport-YAML mode) with six new cross-refs to files we don't ship.
+- **Model-pin frontmatter** on agents (`model: opus`, `effort: high`) — that's upstream's routing policy; ours stay `inherit` so the user's model choice wins.
+- **`model-routing.md`** (pins model names that go stale) and **`/diagnose`** (domain-tuned; overlaps `superpowers:systematic-debugging`).
+
+### Post-init counts
+
+| Profile | Plugins | Rules | Skills | Agents | Hooks | Templates |
+|---|---:|---:|---:|---:|---:|---:|
+| `info` | 8 | 10 | 2 | — | 1 | 6 |
+| `research` | 9 | 14 | 2 | — | 1 | 6 |
+| `paper` | 9 | 18 | 10 | 5 | 4 | 8 |
+| `paper-latex` | 9 | 22 | 12 | 5 | 6 | 8 |
+| `code` | 9 | 14 | 2 | — | 1 | 6 |
 
 ### Tests
 
-10 new assertions in `tests/test-init.sh`: base has no `mcp__*`, no MCP allow entry wildcards the server name (regex guard), 6 spot-check connector entries present, both List/ReadMcpResourceTool present, plugin context7 MCP present. **154 tests total, all green.**
+15 new assertions, including a **generalized dead-reference scanner** — the v0.1.21 `/review-r` check widened to catch this whole class of bug (vendored content pointing at upstream-only files) automatically. 213 tests total, all green.
 
-### Why Path A (enumerate) and not Path B (`--permission-mode bypassPermissions`)
+### Upgrading
 
-Bypass-mode disables all permission gates including the deny list. D2 (32-repo survey + design) rejected that posture. Enumeration costs ~18 lines of allow list and stays within the security model.
+`curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o /tmp/u.sh && bash /tmp/u.sh` — reads your stamp, no profile argument needed.
 
 ---
 
@@ -210,6 +234,45 @@ This convention was a prompt the template author re-typed at the start of every 
 ### Tests
 
 5 new assertions (one per profile in the e2e loop): rule ships in research / paper / paper-latex, and is absent from info / code. 159 tests total, all green.
+
+---
+
+## [v0.1.16] — 2026-06-10
+
+Fix: every new Claude Code session on a template-initialized repo printed a `/doctor` warning that `permissions.allow["mcp__*"]` was rejected. Wildcarding the entire MCP namespace in allow rules is intentionally disallowed by Claude Code (security: prevents prompt-injection-via-MCP-response from auto-executing tools from arbitrary unknown servers). Allow rules must name a literal server prefix; wildcards are only legal in the tool position after `mcp__<server>__`.
+
+### What changed
+
+- **Dropped `"mcp__*"`** from base `.claude/settings.json` `permissions.allow`. Claude Code was already skipping the invalid rule — the only functional change is the `/doctor` warning goes away.
+- **Added enumerated allow entries** for all claude.ai-hosted MCP connectors observed in use (15 servers): `mcp__claude_ai_{Gmail,PubMed,bioRxiv,Scholar_Gateway,Asana,Atlassian,Box,Canva,Consensus,Figma,HubSpot,Intercom,Linear,Notion,monday_com}__*`. These auto-allow without prompt — the connectors are user-account-controlled (you enable them in claude.ai settings), so trusting their tools matches user intent.
+- **Added the context7 plugin MCP**: `mcp__plugin_context7_context7__*`. Matches `enabledPlugins["context7@claude-plugins-official"]` (which we ship in research / paper / paper-latex / code profiles since v0.1.15).
+- **Added two built-in MCP introspection tools** as bare names: `ListMcpResourcesTool`, `ReadMcpResourceTool`. Read-only, safe.
+
+### What stays unchanged
+
+- **Custom and third-party MCP servers** are NOT pre-allowed. If you use them, add per-server entries to your gitignored `.claude/settings.local.json`:
+  ```json
+  {
+    "permissions": {
+      "allow": [
+        "mcp__my_custom_server__*"
+      ]
+    }
+  }
+  ```
+- **The `mcp__<server-wildcard>__*` shape is rejected** by Claude Code. You can't say "any MCP server" — must enumerate.
+
+### Migration
+
+Existing v0.1.x repos: edit `.claude/settings.json` and remove the line `"mcp__*",` from `permissions.allow`. Optionally add the enumerated list above. Or re-init from v0.1.16.
+
+### Tests
+
+10 new assertions in `tests/test-init.sh`: base has no `mcp__*`, no MCP allow entry wildcards the server name (regex guard), 6 spot-check connector entries present, both List/ReadMcpResourceTool present, plugin context7 MCP present. **154 tests total, all green.**
+
+### Why Path A (enumerate) and not Path B (`--permission-mode bypassPermissions`)
+
+Bypass-mode disables all permission gates including the deny list. D2 (32-repo survey + design) rejected that posture. Enumeration costs ~18 lines of allow list and stays within the security model.
 
 ---
 

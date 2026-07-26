@@ -45,10 +45,10 @@ Report saved to `.claude/session-reports/bib_audit_[structural|semantic].md`.
 ### Files scanned
 
 ```
-Slides/*.tex
-Quarto/*.qmd
+**/*.tex
+**/*.qmd
 guide/*.qmd
-master_supporting_docs/**/*.tex
+**/*.md
 ```
 
 ### Bibliography location
