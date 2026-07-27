@@ -1,7 +1,7 @@
 ---
 name: tikz
-description: Audit and fix residual TikZ visual collisions in a .tex file. A downstream repair tool — not a safety net. The upstream defense is rules/tikz-prevention.md, which describes writing safe TikZ from the start. Use /tikz when labels overlap arrows, text sits on boxes, or arrows cross each other. Applies mathematical gap calculations and Bézier depth formulas — no eyeballing.
-allowed-tools: Bash(pdflatex*), Bash(grep*), Bash(ls*), Bash(file*), Bash(wc*), Read, Edit, Glob
+description: Audit and fix residual TikZ visual collisions in a .tex file. A downstream repair tool — not a safety net. Use /tikz when labels overlap arrows, text sits on boxes, or arrows cross each other. Applies mathematical gap calculations and Bézier depth formulas — no eyeballing. ALSO invoke BEFORE writing any new TikZ figure — Step 0 loads the prevention rules (PREVENTION.md); writing safe TikZ beats repairing it.
+allowed-tools: Bash(pdflatex*), Bash(grep*), Bash(ls*), Bash(file*), Bash(wc*), Read, Edit, Write, Glob
 argument-hint: [path/to/file.tex]
 ---
 
@@ -19,12 +19,12 @@ argument-hint: [path/to/file.tex]
 
 `/tikz` runs **after** TikZ has been generated. It audits existing code and fixes what it finds. But it cannot reliably fix diagrams that were never built with measurement in mind.
 
-**The upstream defense is `rules/tikz-prevention.md`**, which describes writing safe TikZ from the start:
+**The upstream defense is [`PREVENTION.md`](PREVENTION.md)** (in this skill directory), which describes writing safe TikZ from the start:
 
 1. Every `\node` declares explicit `minimum width` and `minimum height` (Rule P1)
 2. Every edge label carries a directional keyword (`above`, `below`, etc.) (Rule P4)
 3. A coordinate map comment block precedes every `tikzpicture` (Rule P2)
-4. Standard diagram types use the canonical safe templates in `rules/tikz-snippets/` (Rule P5)
+4. Standard diagram types use the canonical safe templates in `.claude/rules/tikz-snippets/` (Rule P5)
 5. `scale` is never used alone on complex diagrams (Rule P3)
 
 **When prevention rules were applied**: `/tikz` should find few or no issues. Run it as a check.
@@ -39,6 +39,7 @@ argument-hint: [path/to/file.tex]
 
 | Input | Mode | What to do |
 |---|---|---|
+| `.tex` about to be written / new figure | **Prevention** | Read [`PREVENTION.md`](PREVENTION.md) + [`LIBRARIES.md`](LIBRARIES.md) and apply them while generating. Nothing to audit yet — the job is to emit TikZ that satisfies P1–P6 with the canonical library bundle loaded. |
 | `.tex` (or `.tikz`) source | **Measurement mode** — the default and the reliable one | Run the full audit below: Pass 0–6 against the source, with the debug bounding-box (Pass 6) as the verification technique. |
 | `.png` / `.jpg` / single-figure `.pdf`, **no source available** | **Visual fallback** | Read the image and inspect it directly. Report findings; you cannot apply source fixes without the source. |
 | Multi-page `.pdf` | **Refuse** | Point the skill at the source `.tex` instead. A multi-page render is not auditable as a single figure. |
@@ -51,7 +52,7 @@ When the figure came from a plotting toolchain rather than hand-written TikZ, th
 
 | Toolchain | Overlapping labels | Clipped elements |
 |---|---|---|
-| TikZ | reposition with explicit `above`/`below`/`left`/`right` + `xshift`/`yshift`; see `rules/tikz-prevention.md` | widen `\useasboundingbox`, or add `inner sep` |
+| TikZ | reposition with explicit `above`/`below`/`left`/`right` + `xshift`/`yshift`; see [`PREVENTION.md`](PREVENTION.md) | widen `\useasboundingbox`, or add `inner sep` |
 | ggplot2 | `ggrepel::geom_text_repel()`; `theme(legend.position=)` | `expand_limits()`, `coord_cartesian(clip="off")`, widen `plot.margin` |
 | matplotlib | `adjustText`, or `annotate()` with explicit `xytext` offsets | `plt.tight_layout()`, `bbox_inches="tight"` on save |
 
@@ -246,7 +247,7 @@ diff /tmp/tikz-baseline.txt /tmp/tikz-after.txt
 
 **The gate is "no NEW warnings," not "zero warnings."** A real manuscript always emits some `Overfull \hbox` and font-substitution noise from bibliography, fonts, and body text that has nothing to do with your figures — demanding a clean log is an exit condition you will never reach. What matters is that your repositioning didn't introduce anything.
 
-**Circuit breaker (from `rules/tikz-prevention.md`):** after **3 failed attempts on the same error class**, stop. Report to the user with the offending log line, the three approaches you tried, and why each failed. Do not thrash.
+**Circuit breaker (from [`PREVENTION.md`](PREVENTION.md)):** after **3 failed attempts on the same error class**, stop. Report to the user with the offending log line, the three approaches you tried, and why each failed. Do not thrash.
 
 ---
 
@@ -264,7 +265,7 @@ grep -c "tikzpicture" [file].tex   # total figures, for the report
 
 ## Known limitations
 
-These are the cases where `/tikz` is least reliable. When you encounter them, the better fix is almost always upstream (rewrite the TikZ following `rules/tikz-prevention.md`) rather than downstream (try to repair it).
+These are the cases where `/tikz` is least reliable. When you encounter them, the better fix is almost always upstream (rewrite the TikZ following [`PREVENTION.md`](PREVENTION.md)) rather than downstream (try to repair it).
 
 | Limitation | Why it's hard | Upstream fix |
 |---|---|---|

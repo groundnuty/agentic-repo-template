@@ -1,100 +1,40 @@
 # Autonomous-work rules
 
-Applied to every session. These govern Claude's behavior when operating without immediate human oversight.
+Applied to every session. How to behave when operating without immediate human oversight.
 
-## Core principles
+## Core discipline
 
-- **Commit early and often.** Every logical unit of work ends in a commit with a clear message. Do not accumulate uncommitted changes across multiple subtasks — if an agent loses context, uncommitted work is lost.
-- **Never force-push.** `git push --force` / `-f` / `--force-with-lease` are in the deny list. If history rewrite is truly needed, stop and surface it to the user.
-- **Never `--no-verify`.** Pre-commit hooks exist for a reason. If a hook fails, fix the underlying issue, don't skip it.
-- **Verify before claiming done.** Run the project's check command (test suite, linter, type checker, build) before stating that a task is complete. Use the `superpowers:verification-before-completion` skill when finishing any substantive work.
+- **Commit early and often.** Every logical unit of work ends in a commit with a clear message. Uncommitted work is lost work if context runs out mid-task.
+- **Never force-push.** All variants — `git push --force`, `-f`, `--force-with-lease` — are in the deny list. A history rewrite is the user's call: stop and surface it.
+- **Never `--no-verify`.** Pre-commit hooks exist for a reason. If a hook fails, fix the cause.
+- **Verify before claiming done.** Run the project's real check command — its test suite, linter, type checker, build — and read the output before saying the work is complete.
 
-## When stuck or ambiguous
+## Scope
 
-- **Stop. Write a note. Wait.** If a step is ambiguous, if evidence contradicts the plan, if a dependency is missing — do not guess forward. Write a short block in the session transcript explaining what is blocked and what information is needed. If working through a TaskList, mark the task `blocked` with the reason in its description.
-- **Prefer surfacing over papering over.** Silent workarounds (suppressing linter rules, mocking what should be real, disabling tests) are prohibited in autonomous mode. Flag and pause.
+Deliver what was asked, at the scope intended. If the request seems mistaken or a better approach exists, say so in a sentence and continue as asked rather than quietly narrowing, widening, or transforming it.
 
-## Escalation
+## Judgment vs. escalation
 
-If `settings.local.json` does not already allow an operation that appears genuinely necessary (e.g., reading a specific credential file for auth debugging), do not attempt to widen permissions by editing `settings.local.json`. Instead, surface the need and wait for user action.
+- **Make routine judgment calls yourself** and state the assumption in one line.
+- **Stop and wait** only when readings differ materially, evidence contradicts the plan, or the action is risky or irreversible. Say plainly what is blocked and what you need. If you are working through a TaskList, mark the task `blocked` with the reason.
+- **Prefer surfacing over papering over.** Silent workarounds — suppressing linter rules, mocking what should be real, disabling tests — stay prohibited.
+- **Do not widen your own permissions.** If `settings.local.json` does not already allow something you believe you need, surface the need and wait for the user to grant it. Editing the allow list to unblock yourself is not an option.
+
+## Delegation
+
+- Delegate to subagents only for sizeable, genuinely independent tracks. Do not delegate what a handful of tool calls finishes.
+- Do not spawn a subagent to re-check work you just did in this context — it inherits your framing. Do keep verifiers that never saw the draft; fresh-context verification is the pattern that works.
+- Pin `model:` on dispatches. Keep spawn counts low (defaults: 200 per session, 20 concurrent, nest depth 3).
+
+## Working across machines
+
+Everything shared goes through git — commit and push. Auto-memory is machine-local and never syncs, so durable cross-machine notes belong in committed files.
 
 ## Session reporting
 
-- The `PreCompact` hook archives the session transcript and prints a reminder to stderr. If you see that reminder and context is getting full, run `/session-report` manually before the compaction compresses history.
+- The `PreCompact` hook archives the transcript and prints a reminder to stderr. When you see it, prefer `/rewind` → "Summarize up to here" over letting compaction run blind, then `/session-report`.
 - The `SessionEnd` hook captures a final git-state snapshot to `.claude/session-reports/`.
 
-## Notes for Opus 4.7+
+## Where the mechanics live
 
-Claude Opus 4.7 behaves differently from earlier models in ways that matter for autonomous work:
-
-- **More literal instruction following.** The model does not silently generalize an instruction from one item to another, or infer requests you didn't make. Be explicit about scope. If you want a change applied across multiple files, say so.
-- **Fewer subagents by default.** The model prefers direct reasoning over delegation. If you want subagent dispatch (e.g., feature-dev:code-reviewer, Explore), request it explicitly.
-- **Fewer tool calls by default.** If a task seems underdone or reasoning seems shallow, don't prompt around it — check the `effortLevel` in settings.json. The template defaults to `xhigh` for agentic work. Lower values (low, medium) scope narrower.
-- **Response length calibrated to complexity.** Short prompts get short answers; open-ended analysis gets long ones. If you need a specific verbosity, say so explicitly.
-- **Cybersecurity safeguards may refuse** legitimate security work (penetration testing, red-teaming). For those use cases, apply to the Cyber Verification Program.
-
-## Bash deny-rule coverage (Claude Code v2.1.113+)
-
-Our `Bash(...)` deny patterns (sudo, `git push --force*`, `docker push *`, `rm -rf /`, `git commit --no-verify`) now match commands wrapped in common exec wrappers as of Claude Code v2.1.113: `env`, `sudo`, `watch`, `ionice`, `setsid`, and similar. So `env sudo rm -rf /` or `watch sudo docker push ...` are caught by our existing denies without us needing to enumerate every wrapped variant.
-
-This is a Claude Code-level behavior change, not a template-level rule change — no action needed on your part, but worth knowing the surface area is wider than the literal patterns suggest.
-
-## MCP server permissions (v0.1.16+)
-
-Claude Code rejects `mcp__*` wildcards in `permissions.allow` (security: prevents arbitrary unknown MCP servers from auto-executing tools). Allow rules must name a literal server: `mcp__<server>__<tool>` or `mcp__<server>__*` only.
-
-The base template pre-allows:
-
-- **15 claude.ai-hosted connector servers** — every connector you enable in your claude.ai account settings (`mcp__claude_ai_Gmail__*`, `mcp__claude_ai_PubMed__*`, `mcp__claude_ai_Linear__*`, etc.).
-- **The context7 plugin MCP** (`mcp__plugin_context7_context7__*`) since we ship `context7@claude-plugins-official` in research/paper/paper-latex/code profiles.
-- **Two built-in MCP introspection tools** (`ListMcpResourcesTool`, `ReadMcpResourceTool`).
-
-For **custom or third-party plugin MCPs** that aren't on this list, add per-server entries to your gitignored `.claude/settings.local.json`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "mcp__my_custom_server__*",
-      "mcp__third_party_plugin_xyz__*"
-    ]
-  }
-}
-```
-
-If a new claude.ai connector ships and isn't in our base list, you can either add it to `settings.local.json` immediately or wait for the next template release. Until then, the first tool call from that connector will prompt — then Claude Code remembers your choice for the rest of the session.
-
-## File-permission rules use `Edit(path)`, not `Write(path)` (v0.1.19+)
-
-As of Claude Code **v2.1.210**, only `Edit(path)` and `Read(path)` rules are matched by file-permission checks — and `Edit(path)` covers **all** file-editing tools (`Edit`, `Write`, `NotebookEdit`). Standalone `Write(path)` / `NotebookEdit(path)` / `Glob(path)` permission rules are no longer honored as file-permission checks and trigger a `/doctor` startup warning.
-
-The base deny list therefore protects each sensitive path with a single `Edit(<path>)` rule (ssh, aws, gnupg, kube, gcloud, gitconfig, npmrc, pypirc, docker, netrc, gh, shell init files, `~/.claude/settings.json`, `~/.claude.json`). One `Edit(...)` rule blocks both the Edit and Write tools — no paired `Write(...)` entry is needed (and adding one just re-introduces the warning).
-
-If you extend the deny list to guard a new path from file edits, use `Edit(<path>)`. Reserve `Bash(...)` denies for command patterns, and note that neither covers a sandboxed shell reading a file — for that, use `sandbox.filesystem.denyRead` (already set for ssh keys / aws / kube / gcloud) or the newer `sandbox.credentials` knob.
-
-## Auto mode and the classifier (v0.1.21+)
-
-Claude Code's **auto mode** (on by default on recent versions) is a second gate that runs *after* the permission rules — a model classifier that blocks anything it judges irreversible, destructive, or aimed outside your environment. Two consequences matter here:
-
-- **Auto mode suspends broad `Bash` allow rules.** This template ships bare `Bash` in `permissions.allow`, but auto mode treats `Bash` / `Bash(*)` as arbitrary code execution and hands the command to the classifier instead. "We allow all Bash" does **not** mean "no prompts" — the classifier still decides. Narrow rules like `Bash(npm test)` are honored; broad ones are not (unless `autoMode.classifyAllShell` is set).
-- **Subagents inherit the session's auto mode** (Claude Code v2.1.212+). A subagent can't show you a prompt, so when the classifier flags its command it escalates to the leader, which asks you. That's why a command you drive directly runs fine (your explicit intent clears the classifier) while a subagent doing the "same" command keeps asking.
-
-### Relax it — don't disable it
-
-Turning auto mode off loses the classifier's protection and usually yields *more* prompts. Instead tell the classifier what to trust. Trusted infrastructure and scratch areas go in **`~/.claude/settings.json` under `autoMode.environment`** — **not** project `.claude/settings.json` (the classifier deliberately ignores project settings so a checked-in repo can't self-trust). Entries are prose; include `"$defaults"` to extend rather than replace the built-in rules:
-
-```json
-{
-  "autoMode": {
-    "environment": [
-      "$defaults",
-      "Key internal services: the host 'build-box' and its Kubernetes clusters are trusted internal dev infrastructure.",
-      "Local scratch: $TMPDIR / /tmp and clones under it are trusted local working areas, not external destinations."
-    ]
-  }
-}
-```
-
-### Triage a denial
-
-Open `/permissions` → **Recently denied**. Each entry shows the classifier's reason — it tells you whether to add an `autoMode.environment` entry (trusted destination), an `autoMode.allow` exception (routine pattern), or to retry with explicit intent (press `r`). `claude auto-mode config` prints the effective rules so you can confirm your entries took effect. This is user-machine config, not template config — the template can't ship your trusted-infra list, but knowing it lives in `~/.claude` under `autoMode.*` saves the debugging round-trips.
+Config-mechanics notes (MCP allow rules, `Edit(path)`-vs-`Write(path)` file rules, deny-pattern wrapper coverage) live in `.claude/rules/operations.md` and load when you touch settings files. Auto-mode and classifier guidance is user-machine config — see the template README.

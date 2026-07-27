@@ -5,6 +5,8 @@ tools: Read, Grep, Glob, WebFetch, WebSearch, Bash
 model: inherit
 ---
 
+<!-- deliberately NO memory: project — the verifier must never see prior drafts -->
+
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->
 
 

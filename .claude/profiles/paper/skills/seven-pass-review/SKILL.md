@@ -2,6 +2,7 @@
 name: seven-pass-review
 description: Mechanize Pattern 15 — the seven-pass adversarial review protocol for academic manuscripts. Spawns 7 forked subagents in parallel (abstract, intro, methods, results, robustness, prose, citations), then synthesizes a prioritized revision checklist. Use for submission-ready or R&R-stage papers where single-pass review isn't enough.
 argument-hint: "[manuscript path]"
+disable-model-invocation: true
 allowed-tools: ["Read", "Grep", "Glob", "Write", "Bash", "Task"]
 effort: high
 ---
@@ -90,7 +91,7 @@ Wait for all 7 lens reports.
 2. If it verifies, keep the CRITICAL and cite the verification in the report.
 3. If it does not verify — or the check is skipped — drop the finding, label it `[JUDGE-HALLUCINATED]` in the synthesis, and **recompute the Executive verdict** without it.
 
-See [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md) for the underlying protocol.
+See [`verify-claims`](../verify-claims/SKILL.md) for the underlying protocol.
 
 Then produce:
 

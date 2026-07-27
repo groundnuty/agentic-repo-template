@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "_readme": "Copy to .mcp.json; enable a server by renaming its '//<name>-uncomment' key to '<name>' ('//...' keys are inert docs; the file is valid JSON as-is). Servers run OUTSIDE the Bash sandbox. Allow entries for these exact key names are pre-shipped — DO NOT RENAME the keys or the allow/deny rules miss. Local servers need uv (uvx) or Node (npx) on PATH.",
+
+    "//fetch": "Verbatim page text with paging; fixes WebFetch lossiness. 1 tool. Anthropic, MIT. CAUTION (upstream): can reach local/internal IPs (SSRF).",
+    "//fetch-uncomment": { "command": "uvx", "args": ["mcp-server-fetch==2026.7.10"] },
+
+    "//dblp": "CS conferences/workshops + authoritative BibTeX. Keyless, 7 tools. Fills the Scholar-Gateway conference-proceedings gap.",
+    "//dblp-uncomment": { "command": "uvx", "args": ["mcp-dblp==1.4.0"] },
+
+    "//arxiv": "arXiv search with a LOCAL corpus + LaTeX-section extraction. Keyless, 14 tools. Storage path matches the papers/ convention.",
+    "//arxiv-uncomment": { "command": "uvx", "args": ["arxiv-mcp-server==0.6.1", "--storage-path", "./papers"] },
+
+    "//openalex": "OpenAlex: outgoing references, related work, OA status. 5 tools. Scoped npm package — the unscoped 'openalex-mcp-server' is DIFFERENT software.",
+    "//openalex-uncomment": { "command": "npx", "args": ["-y", "@cyanheads/openalex-mcp-server@0.7.8"] }
+  }
+}

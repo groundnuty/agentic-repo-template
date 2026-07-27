@@ -9,10 +9,14 @@
       "kustomize:*",
       "terraform:*",
       "docker:*",
-      "podman:*",
-      "aws:*",
-      "gcloud:*",
-      "az:*"
+      "podman:*"
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__kubernetes__*",
+      "mcp__db__*",
+      "mcp__prometheus__*"
     ]
   }
 }

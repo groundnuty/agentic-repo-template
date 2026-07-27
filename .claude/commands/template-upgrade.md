@@ -23,11 +23,11 @@ Upgrade the current repo to the latest [agentic-repo-template](https://github.co
    bash /tmp/arp-upgrade.sh
    ```
 
-   This backs up `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored), regenerates the template-owned config for this repo's stamped profile + flags, and preserves `settings.local.json`, `rules/project-conventions.md`, `.claude/CLAUDE.md`, `audit.log`, and `session-reports/`. The stamp is bumped to the new version.
+   This backs up `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored), regenerates the template-owned config for this repo's stamped profile + flags — **including `.claude/CLAUDE.md`** (v0.2.0+: profile appends must reach upgraded repos; the previous copy is in the backup — merge personal edits from there) and declared root files (`.mcp.json.example`; your live `.mcp.json` is never touched) — and preserves `settings.local.json`, `rules/project-conventions.md`, `audit.log`, and `session-reports/`. The stamp is bumped to the new version.
 
 3. **Reconcile the settings.json report.** If the upgrader printed a "settings.json entries in your current config but not in the new template output" section, each listed entry is **either** a customization you added **or** an entry the new version intentionally removed. Decide per entry using the CHANGELOG delta the upgrader printed:
    - If an entry was **removed by the template** (mentioned in the CHANGELOG, e.g. a deprecated `Write(path)` deny) — leave it dropped.
-   - If an entry is **your customization** (not in the CHANGELOG) — move it into `.claude/settings.local.json` (the gitignored escape hatch, preserved across future upgrades), not back into `settings.json`.
+   - The report is **partitioned** (v0.2.0+): entries labeled *REMOVED BY THE NEW TEMPLATE* must **not** be restored. For an entry labeled **your customization** — move it into `.claude/settings.local.json` (the gitignored escape hatch, preserved across future upgrades), not back into `settings.json`.
 
    When in doubt, show the user the entry and the backup at `.claude.pre-upgrade-<oldversion>/settings.json`, and ask.
 

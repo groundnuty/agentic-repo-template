@@ -7,14 +7,19 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh | bash
 #
-# It backs up the existing .claude/ to .claude.pre-upgrade-<oldversion>/,
-# regenerates the template-owned config from the latest release (settings.json,
-# skills/agents/hooks/templates/commands, profile rules, refresh-skills.sh),
-# and PRESERVES your files: settings.local.json, rules/project-conventions.md,
-# .claude/CLAUDE.md, audit.log, session-reports/. The stamp is bumped to the
-# new version. Any custom keys you added directly to .claude/settings.json are
-# reported (move them to settings.local.json — that's the intended home for
-# overrides).
+# It backs up the existing .claude/ to .claude.pre-upgrade-<oldversion>/, then
+# regenerates the template-owned config from the latest release:
+#   - .claude/ (settings.json, rules, skills, agents, hooks, templates, commands)
+#   - .claude/CLAUDE.md (REGENERATED as of v0.2.0 — profile appends must reach
+#     upgraded repos; your previous copy is in the backup, merge personal edits
+#     from there; durable per-project notes belong in rules/project-conventions.md)
+#   - declared root-level template files (.mcp.json.example, k8s-mcp.toml.example)
+#     — your live .mcp.json is NEVER touched
+# and PRESERVES: settings.local.json, rules/project-conventions.md, audit.log,
+# session-reports/. The stamp is bumped to the new version.
+#
+# The settings report distinguishes entries the NEW TEMPLATE REMOVED (do not
+# restore them) from YOUR CUSTOMIZATIONS (move to settings.local.json).
 #
 # Options:
 #   --ref <tag>   Upgrade to a specific version instead of latest (default: main).
@@ -28,6 +33,10 @@ REPO="groundnuty/agentic-repo-template"
 SOURCE="${ARP_UPGRADE_SOURCE:-https://github.com/${REPO}.git}"
 REF="main"
 DRY_RUN=0
+
+# Root-level template-owned files (regenerated on upgrade). Live user files
+# (.mcp.json without .example) are never listed here and never touched.
+ROOT_FILES=".mcp.json.example k8s-mcp.toml.example"
 
 usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; $d'; }
 
@@ -63,8 +72,8 @@ if [ -z "$PROFILE" ] || [ "$PROFILE" = "unknown" ]; then
 fi
 
 # Resolve source tree (local dir = no clone; else shallow clone at REF).
-SCRATCH=""; WORK=""; PRESERVE=""
-cleanup() { rm -rf ${SCRATCH:+"$SCRATCH"} ${WORK:+"$WORK"} ${PRESERVE:+"$PRESERVE"} 2>/dev/null; return 0; }
+SCRATCH=""; WORK=""
+cleanup() { rm -rf ${SCRATCH:+"$SCRATCH"} ${WORK:+"$WORK"} 2>/dev/null; return 0; }
 trap cleanup EXIT
 
 if [ -d "$SOURCE" ] && [ -d "$SOURCE/.claude" ]; then
@@ -103,7 +112,8 @@ if [ -f "$SRC/CHANGELOG.md" ] && [ -n "$OLD_VERSION" ]; then
 fi
 
 # Generate the fresh template-owned tree by re-running init with the stamped
-# profile + flags.
+# profile + flags. init.sh also places root-level files (e.g. .mcp.json.example)
+# into $WORK's root.
 WORK="$(mktemp -d)"
 cp -R "$SRC/.claude" "$WORK/"
 FLAGS=()
@@ -111,40 +121,81 @@ FLAGS=()
 [ "$STRICT_SANDBOX" = "true" ] && FLAGS+=(--strict-sandbox)
 (cd "$WORK" && bash ./.claude/init.sh "$PROFILE" ${FLAGS[@]+"${FLAGS[@]}"} >/dev/null)
 
-# Report custom entries in the existing settings.json that aren't in the freshly
-# generated one. NOTE: this set includes both your customizations AND entries the
-# new version intentionally removed — cross-reference the CHANGELOG above.
+# --- Settings report ---------------------------------------------------------
+# Diff the existing settings.json against the freshly generated one, then
+# PARTITION the differences using the template's removed-entries manifest
+# ($SRC/.claude/removed-entries.json): entries the template removed on purpose
+# are labeled DO-NOT-RESTORE; everything else is a genuine user customization.
 report_custom_settings() {
-  local old=".claude/settings.json" new="$WORK/.claude/settings.json" any=0
+  local old=".claude/settings.json" new="$WORK/.claude/settings.json"
+  local manifest="$SRC/.claude/removed-entries.json" any=0
   [ -f "$old" ] && [ -f "$new" ] || return 0
   command -v jq >/dev/null 2>&1 || return 0
   local p
   for p in ".permissions.allow" ".permissions.deny" ".permissions.ask" ".sandbox.excludedCommands"; do
-    local d
+    local d removed="" custom=""
     d="$(jq -rn --slurpfile o "$old" --slurpfile n "$new" \
       "((\$o[0]|$p//[]) - (\$n[0]|$p//[]))[]" 2>/dev/null || true)"
-    if [ -n "$d" ]; then
-      [ "$any" -eq 0 ] && { echo; echo "settings.json entries in your current config but not in the new template output"; echo "(these are your customizations OR entries the new version removed — see CHANGELOG):"; any=1; }
-      echo "  $p:"; echo "$d" | sed 's/^/    - /'
+    [ -n "$d" ] || continue
+    if [ -f "$manifest" ]; then
+      removed="$(printf '%s\n' "$d" | jq -rRn --slurpfile m "$manifest" --arg p "$p" \
+        '[inputs] as $in | ($m[0][$p] // []) as $rm | $in[] | select(. as $x | $rm | index($x))' 2>/dev/null || true)"
+      custom="$(printf '%s\n' "$d" | jq -rRn --slurpfile m "$manifest" --arg p "$p" \
+        '[inputs] as $in | ($m[0][$p] // []) as $rm | $in[] | select(. as $x | $rm | index($x) | not)' 2>/dev/null || true)"
+    else
+      custom="$d"
+    fi
+    [ "$any" -eq 0 ] && { echo; echo "settings.json differences vs the new template:"; any=1; }
+    if [ -n "$removed" ]; then
+      echo "  $p — REMOVED BY THE NEW TEMPLATE (do NOT restore; see CHANGELOG):"
+      printf '%s\n' "$removed" | sed 's/^/    - /'
+    fi
+    if [ -n "$custom" ]; then
+      echo "  $p — your customizations (move to .claude/settings.local.json):"
+      printf '%s\n' "$custom" | sed 's/^/    - /'
     fi
   done
-  local oldhooks
-  oldhooks="$(jq -rn --slurpfile o "$old" --slurpfile n "$new" \
-    '(($o[0].hooks//{})|keys) - (($n[0].hooks//{})|keys) | .[]' 2>/dev/null || true)"
-  if [ -n "$oldhooks" ]; then
-    [ "$any" -eq 0 ] && echo
-    echo "  hook events only in your current config:"; echo "$oldhooks" | sed 's/^/    - /'
-    any=1
+  # Keys the old config has that the new one doesn't: plugins, marketplaces,
+  # env vars, hook events, and top-level scalars.
+  local sec
+  for sec in enabledPlugins marketplaces env hooks; do
+    local dk
+    dk="$(jq -rn --slurpfile o "$old" --slurpfile n "$new" \
+      "((\$o[0].$sec//{})|keys) - ((\$n[0].$sec//{})|keys) | .[]" 2>/dev/null || true)"
+    [ -n "$dk" ] || continue
+    [ "$any" -eq 0 ] && { echo; echo "settings.json differences vs the new template:"; any=1; }
+    local removed="" custom="$dk" manifest="$SRC/.claude/removed-entries.json"
+    if [ -f "$manifest" ]; then
+      removed="$(printf '%s\n' "$dk" | jq -rRn --slurpfile m "$manifest" --arg p ".$sec" \
+        '[inputs] as $in | ($m[0][$p] // []) as $rm | $in[] | select(. as $x | $rm | index($x))' 2>/dev/null || true)"
+      custom="$(printf '%s\n' "$dk" | jq -rRn --slurpfile m "$manifest" --arg p ".$sec" \
+        '[inputs] as $in | ($m[0][$p] // []) as $rm | $in[] | select(. as $x | $rm | index($x) | not)' 2>/dev/null || true)"
+    fi
+    if [ -n "$removed" ]; then
+      echo "  .$sec — REMOVED BY THE NEW TEMPLATE (do NOT restore; see CHANGELOG):"
+      printf '%s\n' "$removed" | sed 's/^/    - /'
+    fi
+    if [ -n "$custom" ]; then
+      echo "  .$sec keys — your customizations (re-apply via .claude/settings.local.json):"
+      printf '%s\n' "$custom" | sed 's/^/    - /'
+    fi
+  done
+  local scal
+  scal="$(jq -rn --slurpfile o "$old" --slurpfile n "$new" \
+    '($o[0]|with_entries(select(.value|type!="object" and type!="array"))|keys) - ($n[0]|with_entries(select(.value|type!="object" and type!="array"))|keys) | .[]' 2>/dev/null || true)"
+  if [ -n "$scal" ]; then
+    [ "$any" -eq 0 ] && { echo; echo "settings.json differences vs the new template:"; any=1; }
+    echo "  top-level keys only in your current config:"
+    printf '%s\n' "$scal" | sed 's/^/    - /'
   fi
-  [ "$any" -eq 1 ] && echo "  -> move genuine customizations into .claude/settings.local.json (preserved across upgrades)."
   return 0
 }
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo
   echo "[dry-run] would back up .claude/ -> .claude.pre-upgrade-${OLD_VERSION:-unknown}/"
-  echo "[dry-run] would regenerate: settings.json, skills/ agents/ hooks/ templates/ commands/, profile rules, refresh-skills.sh, .template-version"
-  echo "[dry-run] would preserve:   settings.local.json, rules/project-conventions.md, .claude/CLAUDE.md, audit.log, session-reports/"
+  echo "[dry-run] would regenerate: .claude/ (incl. CLAUDE.md), root files: $ROOT_FILES"
+  echo "[dry-run] would preserve:   settings.local.json, rules/project-conventions.md, audit.log, session-reports/"
   report_custom_settings
   echo
   echo "[dry-run] no changes made."
@@ -158,24 +209,40 @@ if [ -e "$BACKUP" ]; then
 fi
 cp -R .claude "$BACKUP"
 
-# Emit the custom-settings report against the backup before we replace.
+# Emit the settings report before we replace anything.
 report_custom_settings
 
-# Stash user-owned files, replace .claude with the fresh tree, restore them.
-PRESERVE="$(mktemp -d)"
-preserve_paths="settings.local.json CLAUDE.md rules/project-conventions.md audit.log"
+# Assemble the final tree INSIDE $WORK first (copy preserved user files into it),
+# then swap. This closes the non-atomic window where a crash between removal and
+# restore could strand user files outside the repo.
+preserve_paths="settings.local.json rules/project-conventions.md audit.log"
 for f in $preserve_paths; do
-  if [ -e ".claude/$f" ]; then mkdir -p "$PRESERVE/$(dirname "$f")"; cp -R ".claude/$f" "$PRESERVE/$f"; fi
+  if [ -e ".claude/$f" ]; then
+    mkdir -p "$WORK/.claude/$(dirname "$f")"
+    rm -rf "$WORK/.claude/${f:?}"
+    cp -R ".claude/$f" "$WORK/.claude/$f"
+  fi
 done
-[ -d .claude/session-reports ] && cp -R .claude/session-reports "$PRESERVE/session-reports"
+if [ -d .claude/session-reports ]; then
+  rm -rf "$WORK/.claude/session-reports"
+  cp -R .claude/session-reports "$WORK/.claude/session-reports"
+fi
 
-rm -rf .claude
-cp -R "$WORK/.claude" .claude
+OLD_TREE=".claude.upgrade-old.$$"
+mv .claude "$OLD_TREE"
+if mv "$WORK/.claude" .claude; then
+  rm -rf "$OLD_TREE"
+else
+  mv "$OLD_TREE" .claude
+  echo "upgrade: swap failed; original .claude/ restored (backup at $BACKUP/)." >&2
+  exit 4
+fi
 
-for f in $preserve_paths; do
-  if [ -e "$PRESERVE/$f" ]; then mkdir -p ".claude/$(dirname "$f")"; cp -R "$PRESERVE/$f" ".claude/$f"; fi
+# Root-level template files: regenerate the declared .example files. The user's
+# live .mcp.json / k8s-mcp.toml are never listed and never touched.
+for f in $ROOT_FILES; do
+  if [ -f "$WORK/$f" ]; then cp "$WORK/$f" "./$f"; fi
 done
-if [ -d "$PRESERVE/session-reports" ]; then rm -rf .claude/session-reports; cp -R "$PRESERVE/session-reports" .claude/session-reports; fi
 
 # Ensure the backup directory is gitignored.
 if [ -f .gitignore ] && ! grep -q '^\.claude\.pre-upgrade-' .gitignore; then
@@ -184,6 +251,8 @@ fi
 
 echo
 echo "Upgraded ${OLD_VERSION:-unknown} -> ${NEW_VERSION} (profile: $PROFILE)."
-echo "  Backup:    $BACKUP/ (your previous .claude/ — gitignored; delete once satisfied)"
-echo "  Preserved: settings.local.json, rules/project-conventions.md, .claude/CLAUDE.md, audit.log, session-reports/"
-echo "  Review the settings.json report above (if any) and the backup before committing."
+echo "  Backup:      $BACKUP/ (your previous .claude/ — gitignored; delete once satisfied)"
+echo "  Preserved:   settings.local.json, rules/project-conventions.md, audit.log, session-reports/"
+echo "  Regenerated: .claude/CLAUDE.md (previous copy in the backup — merge any personal edits;"
+echo "               durable notes belong in rules/project-conventions.md), root: $ROOT_FILES"
+echo "  Review the settings report above (if any) and the backup before committing."

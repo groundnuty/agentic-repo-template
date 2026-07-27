@@ -1,3 +1,9 @@
+---
+paths:
+  - "devbox.json"
+  - "**/devbox.json"
+---
+
 # Devbox usage
 
 Applied when the repo has a `devbox.json`.

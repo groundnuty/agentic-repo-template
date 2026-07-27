@@ -37,4 +37,4 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`
 
 - `git push --force` or any variant (blocked by the deny list).
 - `git commit --no-verify` (blocked).
-- Merging without tests passing (use `superpowers:verification-before-completion`).
+- Merging without the project's checks passing.

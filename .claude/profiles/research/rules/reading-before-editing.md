@@ -1,21 +1,9 @@
 # Reading before editing
 
-Applied to research workflows where documents already exist and Claude is asked to refine, critique, or extend them.
+Applied when a document already exists and you are asked to refine, critique, or extend it.
 
-## Before any edit
+**Read the whole file first.** Research documents are densely referential; a partial read produces contradictions. Know the central claim and what it rests on, and know which of rephrasing, restructuring, adding, or critiquing you were actually asked for — they are very different jobs.
 
-1. **Read the entire file.** Not the first 50 lines — the whole thing. Research documents are densely referential; edits without full context produce contradictions.
-2. **Identify the document's argument.** What is the central claim? What does it depend on?
-3. **Identify what the user asked for.** Rephrasing, restructuring, adding a section, critiquing an argument — treat each very differently.
+While editing, match the existing voice, register, and citation style. If the source says something that looks wrong, flag it and propose a fix rather than silently correcting it. Work in small reviewable diffs; never bulk-rewrite a paragraph without showing before and after.
 
-## During the edit
-
-- **Preserve voice.** Match the existing tone, register, and citation style. If the document is formal LaTeX and you're inclined to add markdown bullets, stop.
-- **Surface disagreements.** If the source says something that seems wrong, do not silently "correct" it. Flag the issue, propose a fix, and wait.
-- **Track every change.** Work in small, reviewable diffs. Never bulk-rewrite a paragraph without showing the before/after.
-
-## Verification after edit
-
-- **Re-read from the top.** Your edits may have broken inter-paragraph references.
-- **Check bibliography consistency.** Did you introduce a new citation? Is it in the bib file?
-- **Run the format-check.** If the project has a `make check` / `latex` / `markdownlint` / etc., run it.
+After editing, re-read from the top — your changes may have broken cross-paragraph references. Confirm any new citation exists in the bibliography, and run the project's format check if it has one.

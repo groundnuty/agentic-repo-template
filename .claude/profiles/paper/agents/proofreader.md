@@ -3,6 +3,7 @@ name: proofreader
 description: Expert proofreading agent for academic lecture slides. Reviews for grammar, typos, overflow, and consistency. Use proactively after creating or modifying lecture content.
 tools: Read, Grep, Glob
 model: inherit
+memory: project
 ---
 
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->

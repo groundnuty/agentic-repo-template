@@ -12,9 +12,14 @@ Applied when producing research output (reports, analyses, literature reviews).
 
 ## Search tools, in priority order
 
-1. **Scholar Gateway** (MCP) for journal papers in the indexed corpus.
-2. **WebSearch** with `site:scholar.google.com` or `site:arxiv.org` for preprints and conference proceedings.
-3. **WebFetch** of the specific paper URL when a reference is already known.
+1. **`/deep-research <question>`** — the default entry for broad questions with unknown sources (native fan-out plus per-claim verification; unverifiable claims report as unverified).
+2. **Scholar Gateway** (MCP) for journal papers in the indexed corpus.
+3. **WebSearch** with `site:scholar.google.com` or `site:arxiv.org` for preprints and conference proceedings.
+4. **WebFetch** of the specific paper URL when a reference is already known.
+
+**WebSearch is capped at 200 calls per session**, counted across all subagents, and fails *silently* past the cap — budget your fan-outs.
+
+**WebFetch is lossy** — a small model answers your prompt about the page rather than handing you the page. For verbatim quotes use the fetch MCP server (if enabled) or `curl`.
 
 ## When Scholar Gateway returns nothing
 

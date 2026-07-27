@@ -3,6 +3,7 @@ name: editor
 description: Journal editor who desk-reviews manuscripts, selects two referees with deliberately different dispositions, calibrates to a target journal (from `.claude/references/journal-profiles.md` if the user maintains one, else general venue norms), and synthesizes an editorial decision (FATAL / ADDRESSABLE / TASTE). Used by `/review-paper --peer [journal]`.
 tools: Read, Grep, Glob, WebSearch, WebFetch
 model: inherit
+memory: project
 ---
 
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->

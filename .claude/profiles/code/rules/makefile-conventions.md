@@ -1,3 +1,10 @@
+---
+paths:
+  - "Makefile"
+  - "**/Makefile"
+  - "makefile"
+---
+
 # Makefile conventions
 
 Applied when the project ships a `Makefile` (or `dev.mk`).

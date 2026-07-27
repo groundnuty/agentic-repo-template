@@ -1,3 +1,5 @@
+<!-- Loaded by /tikz Step 0; apply BEFORE writing any TikZ. -->
+
 # TikZ library bundle
 
 **Load a canonical library bundle up front to avoid the most common LLM failure mode.**

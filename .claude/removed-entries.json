@@ -1,0 +1,25 @@
+{
+  "_comment": "Entries the template REMOVED on purpose, by settings path. upgrade.sh uses this to label report lines DO-NOT-RESTORE. Keyed by jq path.",
+  ".sandbox.excludedCommands": [
+    "git:*",
+    "nix:*",
+    "aws:*",
+    "az:*",
+    "gcloud:*"
+  ],
+  ".enabledPlugins": [
+    "elements-of-style@superpowers-marketplace",
+    "claude-md-management@claude-plugins-official",
+    "feature-dev@claude-plugins-official"
+  ],
+  ".marketplaces": [
+    "superpowers-marketplace"
+  ],
+  ".env": [
+    "ENABLE_LSP_TOOL"
+  ],
+  ".permissions.allow": [],
+  ".permissions.deny": [],
+  ".permissions.ask": [],
+  ".hooks": []
+}

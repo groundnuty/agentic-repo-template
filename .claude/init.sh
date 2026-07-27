@@ -18,7 +18,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.1.22"
+TEMPLATE_VERSION="v0.2.0"
 
 usage() {
   cat <<EOF
@@ -126,6 +126,11 @@ copy_profile_content() {
       cp -R "$profile_dir/$subdir/." ".claude/$subdir/"
     fi
   done
+  # Root-level template files (e.g. .mcp.json.example): copied to the repo root.
+  # Later profiles in the chain overwrite earlier ones (each ships a complete file).
+  if [ -d "$profile_dir/root-files" ]; then
+    cp -R "$profile_dir/root-files/." "./"
+  fi
 }
 
 # Kept for backward-compat with older test expectations.
@@ -271,6 +276,7 @@ apply_strict_sandbox() {
 self_delete() {
   rm -rf .claude/profiles
   rm -f  .claude/init.sh
+  rm -f  .claude/removed-entries.json  # upgrade-tooling manifest; read from the template source, not consumers
 }
 
 main() {

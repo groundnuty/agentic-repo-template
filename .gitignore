@@ -30,6 +30,8 @@ out/
 target/
 
 # Secrets (CRITICAL)
+.mcp.json
+k8s-mcp.toml
 .env
 .env.*
 !.env.example

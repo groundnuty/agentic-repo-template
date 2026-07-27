@@ -13,48 +13,24 @@ alwaysApply: false
 
 # Summary–Body Parity (anti–whack-a-mole)
 
-**When editing any summary paragraph, do NOT apply surgical word-level fixes.** Summaries drift from their bodies when the body changes but the summary is not re-verified. Surgical edits to the flagged phrase almost always introduce a new drift elsewhere in the same paragraph.
+**Do not surgical-patch a summary paragraph that has drifted from its body.** Summaries drift when the body changes and the summary is not re-verified. Fixing only the flagged phrase almost always leaves — or creates — another wrong claim in the same paragraph.
 
-## What counts as a "summary paragraph"
+## What counts as a summary paragraph
 
-- CHANGELOG opening paragraph of a version entry (the lede before the first `###` subheading)
-- README.md tagline and section ledes
-- PR title and `## Summary` block
-- Skill / rule / agent frontmatter `description:` field
-- Guide `workflow-guide.qmd` section abstracts
-- MEMORY.md `[LEARN:*]` entry headlines (the single-sentence summary before the prose)
-- Any paragraph of the form "This release does X. It does not do Y. Counts are Z." — the triple-claim shape is a drift magnet
+A CHANGELOG version lede (the text before the first `###`); a README tagline or section lede; a PR title and its `## Summary` block; a skill / rule / agent frontmatter `description:`. Also anything of the shape "This release does X. It does not do Y. Counts are Z." — the triple-claim form is a drift magnet.
 
 ## The protocol
 
-When you edit a summary paragraph (or when a reviewer — human, Copilot, or Codex — flags one):
+1. **Read the full body** the summary is summarizing. Not just the diff.
+2. **Enumerate every substantive claim** in the summary: noun lists, counts, superlatives ("no new"), inclusions and exclusions.
+3. **Check each claim against the body.**
+4. **Rewrite the whole paragraph.** Every claim that no longer holds gets corrected, not just the one that was flagged.
+5. **Re-scan for orphans** — a claim dropped from the summary must not linger unreferenced in the body, and vice versa.
 
-1. **Read the full body** the summary is summarizing. Not just the diff. The whole thing.
-2. **Enumerate every substantive claim** in the current summary: every noun list ("skills, rules, hooks"), every count, every superlative ("no new"), every inclusion/exclusion ("except X").
-3. **Check each claim against the body.** For each claim, find the body content that supports or refutes it.
-4. **Edit the whole paragraph, not just the flagged phrase.** Any specific claim that doesn't hold must be corrected in-place.
-5. **Re-scan for orphan references.** A claim removed from the summary must not reappear in the body unreferenced, and vice versa.
+## Two strikes, then restructure
 
-## When to stop patching and rewrite
+If the same paragraph is flagged twice in a row — even on different words — stop patching and rewrite it structurally. Two hits means the paragraph's shape is wrong, not its wording.
 
-If a reviewer flags the same summary paragraph **twice in a row** (even on different words), stop patching — rewrite structurally. Two hits on the same paragraph means the paragraph itself is the wrong shape, not the specific wording.
+**Bias toward abstraction.** A summary that makes no enumerative claim cannot drift. "On-disk inventory unchanged — see README for counts" survives edits that "27 skills / 13 agents / 22 rules" does not. The specific form is more informative when fresh and rots faster.
 
-**Rewrite bias:** prefer abstraction over specificity in summaries. A summary that makes zero enumerative claims cannot drift.
-
-| Drift-prone (specific) | Drift-proof (abstract) |
-|------------------------|------------------------|
-| "No new skills, no new rules, no new hooks" | "No new directories on disk" |
-| "27 skills / 13 agents / 22 rules / 6 hooks" | "On-disk inventory unchanged — see README for counts" |
-| "Edits to `.claude/agents/X.md` and `.claude/skills/Y/SKILL.md`" | "Existing infrastructure revised" |
-| "Fixes Copilot finding #3 and Codex finding #7" | "Addresses pre-merge review" |
-
-The specific form is more informative when fresh but more likely to rot. The abstract form stays true across edits.
-
-## Lesson: Copilot / Codex are drift detectors
-
-Treat repeated review-bot findings on the same paragraph as a **structural signal**, not a list of bugs to patch one at a time. Each patch narrows the drift window but doesn't close it — the next edit to the body reopens it elsewhere.
-
-## Cross-references
-
-- `MEMORY.md` — `[LEARN:audit]` on summary-body whack-a-mole (the originating incident: three consecutive Copilot findings on the v1.6.1 CHANGELOG opening paragraph, PRs #88–#90).
-- `.claude/skills/commit/SKILL.md` — when writing the commit message for a doc-heavy PR, apply this rule to the `## Summary` section before pushing.
+Repeated review-bot findings on one paragraph are a structural signal, not a list of bugs to patch one at a time.

@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "_readme": "Copy to .mcp.json; enable a server by renaming its '//<name>-uncomment' key to '<name>' ('//...' keys are inert docs; the file is valid JSON as-is). Servers run OUTSIDE the Bash sandbox. Allow entries for these exact key names are pre-shipped — DO NOT RENAME the keys, especially 'papers' (its Sci-Hub deny rules target mcp__papers__* names; renaming fails open). Local servers need uv (uvx) or Node (npx) on PATH.",
+
+    "//fetch": "Verbatim page text with paging; fixes WebFetch lossiness. 1 tool. Anthropic, MIT. CAUTION (upstream): can reach local/internal IPs (SSRF).",
+    "//fetch-uncomment": { "command": "uvx", "args": ["mcp-server-fetch==2026.7.10"] },
+
+    "//dblp": "CS conferences/workshops + authoritative BibTeX. Keyless, 7 tools.",
+    "//dblp-uncomment": { "command": "uvx", "args": ["mcp-dblp==1.4.0"] },
+
+    "//arxiv": "arXiv search with a LOCAL corpus + LaTeX-section extraction. Keyless, 14 tools.",
+    "//arxiv-uncomment": { "command": "uvx", "args": ["arxiv-mcp-server==0.6.1", "--storage-path", "./papers"] },
+
+    "//openalex": "OpenAlex citation graph. 5 tools. Scoped package — unscoped 'openalex-mcp-server' is different software.",
+    "//openalex-uncomment": { "command": "npx", "args": ["-y", "@cyanheads/openalex-mcp-server@0.7.8"] },
+
+    "//papers": "paper-search-mcp: 21-source search (arXiv, PubMed, bioRxiv, medRxiv, IACR, Google Scholar, ...) + per-source download/read. ~63 tools (deferred-loaded). Point save_path args at papers/. NOTE: its two Sci-Hub tools (download_scihub, download_with_fallback — use_scihub defaults true) are DENIED in settings.json; keep the key named 'papers' so those denies hold.",
+    "//papers-uncomment": { "command": "uvx", "args": ["paper-search-mcp==0.1.4"] },
+
+    "//zotero": "Zotero library access, LOCAL read-only mode (no credentials leave the machine). 38 tools — heaviest server named here. Install first: uv tool install zotero-mcp-server (pin; see docs). Zero-MCP alternative: Better BibTeX auto-export to a .bib the toolchain reads directly.",
+    "//zotero-uncomment": { "command": "zotero-mcp", "env": { "ZOTERO_LOCAL": "true" } },
+"//arxivlatex": "arXiv LaTeX source, section-addressable (math/macros survive rendering). 4 tools. CHECK FIRST: may be redundant with the alphaXiv connector if it returns LaTeX-fidelity text.",
+    "//arxivlatex-uncomment": { "command": "uvx", "args": ["arxiv-latex-mcp==0.2.2"] }
+  }
+}
+

@@ -1,41 +1,9 @@
 # Testing discipline
 
-Applied to every code-writing session.
+**Tests are the definition of done for code work.** Untested new behavior is not finished behavior, whatever the diff looks like.
 
-## TDD, not vibes
+Write tests with the change — before it when writing the test clarifies the design, which is most of the time for a new interface or a reported bug. Run the project's real suite before claiming done, and read the output; a green summary you did not look at proves nothing.
 
-Every new feature or bug fix follows the TDD loop:
+Mirror the source tree, one behavior per test, no dependence on test order, shared state, the network, or a particular machine. A flaky test is a real bug: investigate it, don't rerun it. Never comment out a failing test, and never patch the runner so a failure stops being reported.
 
-1. **Red**: write a failing test that captures the desired behavior.
-2. **Green**: write the minimum implementation that makes it pass.
-3. **Refactor**: tidy the implementation, re-run tests.
-4. **Commit**: each cycle ends with a commit.
-
-Reference: `superpowers:test-driven-development` skill.
-
-## Coverage
-
-Target **80%+ line coverage** for new code. Generate coverage: `make coverage` or language-specific tool.
-
-## Test layout
-
-- Mirror the source tree. `src/foo/bar.ts` <-> `tests/foo/bar.test.ts`.
-- One behavior per test. Named `test_<what>_<condition>_<expected>`.
-- Arrange / Act / Assert — three blocks, blank-line separated.
-
-## Test isolation
-
-- Tests do not depend on order.
-- Tests do not depend on shared state.
-- Tests do not hit the network. Use local mock servers.
-- Tests do not require the developer's machine to be in a specific state.
-
-## When a test is flaky
-
-Do not rerun. Investigate. A flaky test is a real bug.
-
-## Never
-
-- `--no-verify` (deny-list).
-- Commenting out a failing test "temporarily".
-- Writing the test after the implementation and calling it TDD.
+`/verify` captures a repo-specific verification recipe; `/run-skill-generator` commits an app-launch skill. Use them instead of re-describing verification every session.

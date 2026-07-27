@@ -8,6 +8,52 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.0] — 2026-07-27
+
+**BREAKING — the context-engineering rethink for Claude 5 generation models.** The Claude 5 guides (July 2026) deprecated the pattern this template was built on: large always-loaded rule sets constrain judgment that current models exercise correctly, and several shipped instructions had become sign-inverted (delegation, verification). v0.2.0 rebuilds around a thin always-on core + conditional (path-scoped) rules + skills + an opt-in MCP layer. Full rationale: decision log D44–D47; adversarial pre-release review: `docs/plans/2026-07-27-v0.2-plan-review.md` in the research repo.
+
+### Security: the `git:*` sandbox hole is closed
+
+`sandbox.excludedCommands: ["git:*"]` unsandboxed the **entire Bash invocation** whenever git appeared in it — most autonomous commands — silently disabling `denyRead` and `credentials` protections (verified July 2026; cf. claude-code#45113, #81157). Removed, along with the substring-hazard entries (`nix:*`; code profile's `aws:*`/`az:*`/`gcloud:*`). Every surviving exclusion now has a documented justification (README table). Git runs sandboxed; if signed tags or ssh pushes fail in your setup, the command falls back to a permission prompt — narrow escape hatch documented, never `git:*`.
+
+### Removed (do NOT restore these from your upgrade backup)
+
+- **Rules deleted:** `meta-governance.md` (described the upstream author's repo; its two-tier memory scheme fought native auto-memory), `verification-before-done.md` (mandated the extra verification pass Opus 5 performs natively; replaced by `/verify` + `/run-skill-generator` pointers), `tikz-prevention.md` + `tikz-library-bundle.md` (moved INTO the `/tikz` skill as `PREVENTION.md`/`LIBRARIES.md` — prevention must fire when *writing* TikZ, and path-scoped rules only fire on read), `exploration-fast-track.md` + `exploration-folder-protocol.md` (merged into one `exploration.md`).
+- **Plugins dropped:** `elements-of-style` (dormant 9 months, unpinnable, natively superseded by Claude 5 prose + `/humanizer`), `claude-md-management` (frozen since Jan 2026, encodes the pre-Claude-5 "comprehensive CLAUDE.md" model that `/doctor` now trims natively), `feature-dev` (native `/code-review <effort>` supersedes its reviewer; re-add per-repo via `settings.local.json` if you relied on it). The orphaned `superpowers-marketplace` entry is gone with elements-of-style.
+- **Settings keys dropped:** `alwaysThinkingEnabled` (thinking is on by default on Claude 5), `env.ENABLE_LSP_TOOL` (undocumented no-op — LSP gates on plugin presence).
+- **All `superpowers:verification-before-completion` mandates** (three places) — compounded with native self-verification into pure token waste.
+
+### Changed
+
+- **`effortLevel: "xhigh"` → `"high"`** — the Opus 5 documented default; xhigh was an Opus 4.7 carry-over the docs explicitly say to re-sweep. Step up per-session with `/effort` for the hardest work.
+- **`autonomous-work.md` rewritten** (1,257 → ~600 words): delegation guidance inverted for Opus 5 (constrain, don't encourage; keep fresh-context verifiers, drop same-context re-checks), stuck-threshold raised (routine judgment calls happen; stop only on material divergence/risk), task-scoping line added, model-era notes deleted under a standing policy (they decay faster than releases — the official prompting docs are the reference now).
+- **Config-mechanics notes moved** to a new path-scoped `rules/operations.md` (loads when touching settings/MCP files); the auto-mode playbook moved to the README (user-machine config, not repo config).
+- **Rules corpus dieted and path-scoped** — `pdf-processing`, `latex-bibtex-discipline`, `makefile-conventions`, `devbox-usage` now load only when matching files are touched; `writing-quality`, `prompt-shaping`, `knowledge-work-structure`, `reading-before-editing`, `testing-discipline`, `summary-parity`, `humanize-prose` shrunk to their kernels. Paper protocol rules (`cross-artifact-review`, `post-flight-verification`, `proofreading-protocol`) became ~45-word auto-triggers pointing at their skills (single source of truth; automatic invocation preserved).
+- **`.claude/CLAUDE.md` is now REGENERATED on upgrade** (previously preserved wholesale — which meant profile-append fixes never reached upgraded repos). Your previous copy lands in the upgrade backup; durable per-project notes belong in `rules/project-conventions.md`, which is still preserved.
+- **`citation-discipline`** gains the `/deep-research` front door + two operational facts: WebSearch caps at 200 calls/session **across all subagents, failing silently**; WebFetch is lossy — use the `fetch` MCP server or curl for verbatim quotes.
+- **humanizer re-vendored from `blader/humanizer` v2.9.1** (pinned tag; the groundnuty fork is retired). Not cosmetic: v2.9.0 added the no-fabrication rule and repaired examples that modelled inventing facts.
+- **`/validate-bib`** gains an existence + retraction pass (Crossref/OpenAlex DOI resolution; a DOI resolving to a *different* paper is the fabrication signature — always CRITICAL). **`/respond-to-referees`** gains latexdiff wiring (`tlmgr install latexdiff` on BasicTeX). Referee/editor/proofreader agents gain `memory: project`; `claim-verifier` deliberately does not (fresh context is its point).
+
+### New
+
+- **The MCP layer:** per-profile `.mcp.json.example` at the repo root — pinned, opt-in, valid-JSON-as-shipped (enable by renaming a key, no comment-stripping). research: DBLP (CS proceedings — closes the Scholar Gateway gap), arXiv (local corpus under `papers/`), OpenAlex. paper: + `paper-search-mcp` (21-source search; its two Sci-Hub tools are **hard-denied** in settings — keep the server key named `papers`) + Zotero (local read-only; or the zero-MCP Better BibTeX auto-export route). paper-latex: + arXiv-LaTeX. code: + Kubernetes (Red Hat server, read-only flag + Secret denylist via `k8s-mcp.toml.example`), dbhub, Prometheus. All commented-out by default, including `fetch` (upstream SSRF caution). `.mcp.json`/`k8s-mcp.toml` are gitignored.
+- **`upgrade.sh` hardened** (this is what makes v0.2 deliverable): atomic assemble-then-swap (no half-upgraded state on crash), root-level template files regenerate (`.example` files reach existing repos; your live `.mcp.json` is never touched), the settings report now covers `enabledPlugins`/`marketplaces`/`env`/top-level keys (previously silently dropped), and it **partitions** removals-by-template (labeled *do NOT restore*) from your customizations — the previous report taught users to restore removed entries.
+- **Multi-machine note** in `autonomous-work.md` (auto-memory is machine-local; shared state goes through git) — replacing the deleted meta-governance guidance.
+
+### Migration paths
+
+1. **Standard repos:** `curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o /tmp/u.sh && bash /tmp/u.sh` (dry-run first if cautious). Read the partitioned settings report: restore **nothing** from the "REMOVED BY THE NEW TEMPLATE" list; move your customizations to `settings.local.json`. Merge any personal edits to `.claude/CLAUDE.md` from the backup. First session after: expect the classifier/sandbox to prompt on signed-tag/ssh-push git operations if your environment needs the escape hatch above.
+2. **Repos that relied on dropped plugins** (`feature-dev` reviewers, `elements-of-style`): re-enable per-repo in `settings.local.json` (`"enabledPlugins": {"feature-dev@claude-plugins-official": true}`) — the upgrade report lists exactly what was dropped.
+3. **Repos with heavy hand-edits to deleted rules:** everything is in `.claude.pre-upgrade-*/`; the CHANGELOG section above lists every deleted/moved file and its successor.
+
+### Known limitations
+
+- texlab LSP integration is **deferred to v0.3** — plugins are the only documented LSP delivery path, and profile plugin-ization is v0.3's scope.
+- The superpowers plugin stays (its SessionStart injection and all): upstream is **open to a slim variant gated on their eval suite** — the right fix is upstream or a measured vendor-the-used decision, both pending usage data. See D45.
+- `--cloud-compat` flag retained (removal re-deferred; D36's promise is tracked).
+
+---
+
 ## [v0.1.22] — 2026-07-25
 
 **Upstream audit release.** First systematic re-audit of the content vendored from [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) (April 2026) and [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools). Fixes three real bugs in shipped content, resolves six dead cross-references, adds two upstream logic improvements, and ships three new generic pieces. No breaking changes.

@@ -2,20 +2,10 @@
 
 ## Profile: research
 
-Information + technical research — reading documentation, analyzing code, evaluating tools. No code writing.
+Information + technical research — reading documentation, analyzing code, evaluating tools. Layers on `info`. No code writing.
 
-### Scholar Gateway setup (one-time, per claude.ai account)
+**Where work lands.** Six lazily-created top-level directories: `research/` (findings), `papers/` (PDFs you fetched, plus `INDEX.md`), `input/` (what the user gave you), `insights/` (joint conclusions), `deliverables/` (external-facing output), `questions/` (open, living). Full contract in `.claude/rules/knowledge-work-structure.md`.
 
-Scholar Gateway is a claude.ai-hosted MCP connector, not a local MCP server. To enable it:
+**Scholar Gateway** is a claude.ai-hosted connector, not a local MCP server: enable it in your claude.ai account settings, then confirm with `/mcp`. It indexes **journals only** (Wiley; ~8M articles) — **no conference proceedings** (IEEE, ACM, Springer LNCS, NeurIPS) and **no preprints**. Always supplement with DBLP, arXiv, and WebSearch.
 
-1. In your claude.ai account settings, find "Connectors" or "MCP servers".
-2. Enable "Scholar Gateway" and complete the authentication flow.
-3. Confirm it's active by running `/mcp` in Claude Code — you should see `Scholar Gateway` listed.
-
-Scholar Gateway indexes journal papers (Wiley, Elsevier, Springer, etc.). It **does not index conference proceedings** (IEEE, ACM, Springer LNCS, NeurIPS, etc.) or arXiv preprints. Supplement with WebSearch on Google Scholar for those.
-
-### Active profile-specific rules
-
-- `writing-quality.md` — from info profile (prose quality rules).
-- `citation-discipline.md` — citation norms for research output.
-- `reading-before-editing.md` — verification loop before modifying research documents.
+**Auto-memory does not reach subagents** (except forks). Referee and verifier agents never see project memory — put anything they need in their prompt or in a committed file.

@@ -2,6 +2,7 @@
 name: respond-to-referees
 description: Generate a structured response-to-referees document from a referee report and the revised manuscript. Maps each referee comment to the specific revision, classifies coverage (addressed / partially / deferred / disagreement), and drafts polite but firm responses. Use during the R&R (revise-and-resubmit) stage of paper revision.
 argument-hint: "[referee-report-path] [revised-manuscript-path] [--no-verify]"
+disable-model-invocation: true
 allowed-tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Task"]
 effort: high
 ---
@@ -92,7 +93,7 @@ Write the output to `response-to-referees.md` (matching the template filename) o
 
 ### Step 5.5: Post-Flight Verification (MANDATORY, CoVe)
 
-The response document's most hallucination-prone content is the set of "we added X on page Y" claims. Hallucinating these gets a paper desk-rejected on sight. Before declaring the response document final, run the Post-Flight Verification protocol from [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md).
+The response document's most hallucination-prone content is the set of "we added X on page Y" claims. Hallucinating these gets a paper desk-rejected on sight. Before declaring the response document final, run the Post-Flight Verification protocol from [`verify-claims`](../verify-claims/SKILL.md).
 
 **Steps:**
 
@@ -122,10 +123,41 @@ After the document is written, include this summary in your **final chat message
 
 If everything is covered, the final message should say `All concerns addressed or explicitly classified.`
 
+## Revision diff (LaTeX manuscripts)
+
+Editors and referees read the diff before they read the response. If the manuscript is LaTeX, produce a marked-up PDF and point at it — a response entry that says "see the highlighted passage on p. 12 of the diff" is checkable in seconds; one that says "we clarified the identification argument" is not.
+
+**Generate it.** Two routes:
+
+```bash
+# Plain: pre-revision source vs revised source
+latexdiff --flatten old.tex new.tex > diff.tex && pdflatex diff.tex && pdflatex diff.tex
+
+# Against the tag you submitted from (no stale copy of old.tex needed)
+latexdiff-vc --git --flatten --pdf -r submission-v1 main.tex
+```
+
+- `--flatten` is not optional for multi-file manuscripts — without it `latexdiff` diffs the wrapper and ignores every `\input`/`\include`.
+- Run `pdflatex` twice (or `latexmk diff.tex`) so cross-references and the ToC settle.
+- Macro-heavy preambles can break the markup. `--append-safecmd=cmd1,cmd2` for commands whose *arguments* are safe to mark up; `--exclude-textcmd` for ones that must be left alone. If a specific environment explodes, `%DIF PREAMBLE` blocks and `--config` are the escape hatches — do not hand-edit `diff.tex`, it is regenerated output.
+
+**Wire it into the response.** For every concern classified **Addressed** or **Partially addressed** whose change is *textual*, cite the diff page next to the manuscript location: `(revised manuscript p. 14, §4.2; diff p. 16)`. Skip it for concerns resolved by a new figure, table, or dataset — those need the artifact itself, not a text diff. If you produced a diff, name its filename once in the cover paragraph so the editor knows it exists.
+
+**Availability.** `latexdiff` ships in TeX Live's `collection-binextra`, so full TeX Live and MacTeX already have it. BasicTeX / `scheme-small` users install it explicitly:
+
+```bash
+tlmgr install latexdiff       # may need sudo on MacTeX/BasicTeX
+```
+
+If `latexdiff` is unavailable and cannot be installed, say so in the final message and fall back to per-comment page/line references — do not fabricate diff page numbers.
+
+**Submission prep.** Before uploading the revised source, strip comments, unused files, and oversized images with [`arxiv-latex-cleaner`](https://github.com/google-research/arxiv-latex-cleaner) (`pip install arxiv-latex-cleaner`, then `arxiv_latex_cleaner paper/` → `paper_arXiv/`). Referee-facing `% TODO` and `% reviewer 2 is wrong about this` comments have been read before. Clean the copy you upload; keep the annotated one in git.
+
 ## Output Files
 
 - `response-to-referees.md` — the deliverable (filename matches `templates/response-to-referees.md`)
 - (Optional) `response-to-referees-matrix.csv` — machine-readable concern-to-response mapping for tracking across revisions
+- (LaTeX) `diff.pdf` / `main-diff<tag>.pdf` — the marked-up revision diff referenced from the response entries
 
 ## Pre-submission rehearsal
 

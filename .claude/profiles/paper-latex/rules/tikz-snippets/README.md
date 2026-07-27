@@ -3,8 +3,8 @@
 Canonical starting points for common academic diagrams. Each snippet:
 
 - Compiles as a standalone document (`standalone` class).
-- Loads only the TikZ libraries it needs from the canonical bundle (see `../tikz-library-bundle.md`).
-- Embeds rules P1, P2, P4 from `../tikz-prevention.md` (explicit node dimensions, coordinate-map comment, directional edge labels).
+- Loads only the TikZ libraries it needs from the canonical bundle (see `.claude/skills/tikz/LIBRARIES.md`).
+- Embeds rules P1, P2, P4 from `.claude/skills/tikz/PREVENTION.md` (explicit node dimensions, coordinate-map comment, directional edge labels).
 - Uses `xxHigh`-quality defaults: sensible node spacing, `Stealth` arrow tips, `\small` font.
 
 ## Snippets
@@ -30,4 +30,4 @@ Canonical starting points for common academic diagrams. Each snippet:
 
 ## Why not more snippets?
 
-These five cover the ~80% case for papers across disciplines. Domain-specific diagrams (commutative diagrams in math, Feynman diagrams in physics, DAGs in causal inference) are better served by their specialty packages — see `../tikz-library-bundle.md` for the list. Copying a commutative diagram into `tikz-cd` syntax is faster than starting from a raw-TikZ template.
+These five cover the ~80% case for papers across disciplines. Domain-specific diagrams (commutative diagrams in math, Feynman diagrams in physics, DAGs in causal inference) are better served by their specialty packages — see `.claude/skills/tikz/LIBRARIES.md` for the list. Copying a commutative diagram into `tikz-cd` syntax is faster than starting from a raw-TikZ template.

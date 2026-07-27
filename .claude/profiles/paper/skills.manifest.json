@@ -3,8 +3,8 @@
     {
       "name": "humanizer",
       "source": "git",
-      "url": "https://github.com/groundnuty/humanizer.git",
-      "ref": "main"
+      "url": "https://github.com/blader/humanizer.git",
+      "ref": "v2.9.1"
     },
     {
       "name": "analyze-paper",

@@ -1,3 +1,5 @@
+<!-- Loaded by /tikz Step 0; apply BEFORE writing any TikZ. -->
+
 # TikZ prevention rules
 
 **Write TikZ that can't collide in the first place.** Load whenever you are authoring or editing a `\begin{tikzpicture}` block.

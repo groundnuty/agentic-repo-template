@@ -5,6 +5,8 @@
 **Location:** `.claude/session-reports/session_logs/YYYY-MM-DD_description.md`
 **Template:** `templates/session-log.md`
 
+Native auto-memory handles cross-session continuity automatically and is machine-local; the session log exists because it is committed — the repo-visible record of autonomous work.
+
 ## Three Triggers (all proactive)
 
 ### 1. Post-Plan Log

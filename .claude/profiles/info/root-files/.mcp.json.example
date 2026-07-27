@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "_readme": "Copy this file to .mcp.json and enable a server by renaming its '//<name>-uncomment' key to '<name>' (the '//...' keys are inert documentation; the file is valid JSON as-is). Servers run OUTSIDE the Bash sandbox — sandbox.network / denyRead / credentials do NOT constrain them. Each enabled server needs its permissions.allow entry (pre-shipped for the servers named here). Local servers need uv (uvx) or Node (npx) on PATH.",
+
+    "//fetch": "Verbatim page text with paging — fixes WebFetch lossiness (a small model summarizes; this returns the real text). 1 tool. Anthropic-maintained, MIT.",
+    "//fetch-CAUTION": "Upstream warning: can reach local/internal IPs (SSRF risk). Honors robots.txt by default. Enable only if you understand that.",
+    "//fetch-uncomment": { "command": "uvx", "args": ["mcp-server-fetch==2026.7.10"] }
+  }
+}

@@ -53,77 +53,65 @@ Every artifact by exact name, one row per item. Cell `✓` means the artifact is
 
 ### Post-init totals
 
-| Profile | Plugins | Rules | Skills | Agents | Hooks | Templates |
-|---|---:|---:|---:|---:|---:|---:|
-| `info` | 8 | 10 | 2 | — | 1 | 6 |
-| `research` | 9 | 14 | 2 | — | 1 | 6 |
-| `paper` | 9 | 18 | 10 | 5 | 4 | 8 |
-| `paper-latex` | 9 | 22 | 12 | 5 | 6 | 8 |
-| `code` | 9 | 14 | 2 | — | 1 | 6 |
+| Profile | Plugins | Rules | Always-on rule words | Skills | Agents | Hooks | Templates | `.mcp.json.example` |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|
+| `info` | 5 | 9 | ~1,070 | 2 | — | 2 | 6 | ✓ |
+| `research` | 6 | 13 | ~1,870 | 2 | — | 2 | 6 | ✓ |
+| `paper` | 6 | 17 | ~2,060 | 10 | 5 | 5 | 8 | ✓ |
+| `paper-latex` | 6 | 19 | ~2,060 | 12 | 5 | 7 | 8 | ✓ |
+| `code` | 6 | 12 | ~1,210 | 2 | — | 2 | 6 | ✓ |
 
-Hook counts include opt-in hooks shipped but not activated by default (reference them from `.claude/settings.local.json` to enable). `info` ships `git-guardrails.py`; `paper` adds `notify.sh` + `log-reminder.py`; `paper-latex` adds `verify-reminder.py`.
+"Always-on rule words" counts only rules **without** `paths:` frontmatter — the context every session actually carries. v0.2.0 cut this 61–75% per profile versus v0.1.22 (e.g. paper-latex 8,194 → 2,061 words); the rest loads only when matching files are touched, or lives in skills invoked on demand. Hook counts include opt-in hooks (enable via `settings.local.json`).
 
-### What's common vs specific at a glance
-
-- **In all five profiles** (base + info): 8 plugins, 10 rules, 2 skills (`permission-check`, `checkpoint`), 1 opt-in hook (`git-guardrails.py`), 6 templates.
-- **In four profiles** (`research` + `paper` + `paper-latex` + `code` — *not* `info`): 1 plugin (`context7`).
-- **In three profiles** (`research` + `paper` + `paper-latex`): 4 rules (`citation-discipline`, `reading-before-editing`, `pdf-processing`, `knowledge-work-structure`).
-- **In `paper` and `paper-latex`**: 4 rules (`humanize-prose`, `post-flight-verification`, `proofreading-protocol`, `cross-artifact-review`), 8 skills, 5 agents, 2 hooks, 1 template.
-- **`paper-latex`-only** (LaTeX/TikZ layer on top of `paper`): 4 rules (`latex-bibtex-discipline`, `tikz-prevention`, `tikz-library-bundle`, `tikz-snippets/`), 2 skills (`tikz`, `validate-bib`), 1 hook (`verify-reminder.py`).
-- **Code-only**: 4 rules.
-
-### Plugins (9 unique, `context7` conditional)
+### Plugins (6 unique, `context7` conditional)
 
 | Plugin | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
 | `superpowers@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `commit-commands@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `claude-md-management@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `session-report@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `hookify@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `claude-code-setup@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `feature-dev@claude-plugins-official` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `elements-of-style@superpowers-marketplace` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `context7@claude-plugins-official` | — | ✓ | ✓ | ✓ | ✓ |
 
-### Rules (26 unique)
+Dropped in v0.2.0: `elements-of-style` (dormant, natively superseded), `claude-md-management` (pre-Claude-5 model; `/doctor` trims natively), `feature-dev` (native `/code-review` supersedes) — re-enable any per-repo via `settings.local.json`.
+
+### Rules (22 unique; ⊙ = path-scoped, loads only when matching files are touched)
 
 | Rule | info | research | paper | paper-latex | code |
 |---|:-:|:-:|:-:|:-:|:-:|
-| `autonomous-work.md` — how to behave unattended | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `autonomous-work.md` — judgment-framed unattended discipline | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `operations.md` ⊙ — config mechanics (perms/MCP/deny coverage); fires on settings/MCP files | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `pr-discipline.md` — commit/PR format | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `project-conventions.md` — per-project overrides (stub) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `writing-quality.md` — prose conventions, banned AI-isms | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `summary-parity.md` — don't surgical-patch drifting summaries | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `exploration-fast-track.md` — 60/100 threshold for experiments | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `exploration-folder-protocol.md` — `explorations/` lifecycle | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `meta-governance.md` — template vs working project, 2-tier memory | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `session-logging.md` — three-trigger logging discipline | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `prompt-shaping.md` — shape fuzzy asks before acting; surface only real decisions | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `citation-discipline.md` — never cite from memory | — | ✓ | ✓ | ✓ | — |
+| `writing-quality.md` — document-length calibration + worst AI-isms | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `prompt-shaping.md` — resolve fuzzy asks silently, surface only real decisions | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `summary-parity.md` ⊙ — regenerate drifting summaries, don't patch | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `exploration.md` ⊙ — explorations/ lifecycle + fast-track threshold | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `session-logging.md` — the committed record (auto-memory boundary stated) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `citation-discipline.md` — never cite from memory; /deep-research front door; WebSearch/WebFetch caveats | — | ✓ | ✓ | ✓ | — |
 | `reading-before-editing.md` — full read before research edits | — | ✓ | ✓ | ✓ | — |
-| `pdf-processing.md` — read PDFs directly; split only oversized/corrupt | — | ✓ | ✓ | ✓ | — |
-| `knowledge-work-structure.md` — research/papers/input/insights/deliverables/questions layout | — | ✓ | ✓ | ✓ | — |
-| `humanize-prose.md` — how to use the humanizer skill | — | — | ✓ | ✓ | — |
-| `post-flight-verification.md` — Chain-of-Verification discipline | — | — | ✓ | ✓ | — |
-| `proofreading-protocol.md` — three-phase propose → approve → apply | — | — | ✓ | ✓ | — |
-| `cross-artifact-review.md` — paper review also reviews referenced scripts | — | — | ✓ | ✓ | — |
-| `latex-bibtex-discipline.md` — LaTeX + BibTeX conventions | — | — | — | ✓ | — |
-| `tikz-prevention.md` — 6-rule protocol for safe TikZ | — | — | — | ✓ | — |
-| `tikz-library-bundle.md` — canonical preamble + specialty packages | — | — | — | ✓ | — |
-| `tikz-snippets/` — 5 compilable standalone figures + README | — | — | — | ✓ | — |
-| `makefile-conventions.md` — standard Make targets | — | — | — | — | ✓ |
-| `devbox-usage.md` — devbox idioms and CI parity | — | — | — | — | ✓ |
-| `testing-discipline.md` — TDD, 80% coverage, isolation | — | — | — | — | ✓ |
-| `verification-before-done.md` — "am I actually done?" gate | — | — | — | — | ✓ |
+| `pdf-processing.md` ⊙ — native PDF reads; OCR gap → docling/ocrmypdf | — | ✓ | ✓ | ✓ | — |
+| `knowledge-work-structure.md` — six dirs + capture-conclusions-as-they-happen + artifact rule | — | ✓ | ✓ | ✓ | — |
+| `humanize-prose.md` — when to run /humanizer | — | — | ✓ | ✓ | — |
+| `post-flight-verification.md` — auto-trigger → verify-claims skill | — | — | ✓ | ✓ | — |
+| `proofreading-protocol.md` — auto-trigger → proofread skill | — | — | ✓ | ✓ | — |
+| `cross-artifact-review.md` — auto-trigger → review-paper skill | — | — | ✓ | ✓ | — |
+| `latex-bibtex-discipline.md` ⊙ — LaTeX/BibTeX conventions | — | — | — | ✓ | — |
+| `tikz-snippets/` — 5 compilable reference figures (guide-endorsed rich references) | — | — | — | ✓ | — |
+| `makefile-conventions.md` ⊙ | — | — | — | — | ✓ |
+| `devbox-usage.md` ⊙ | — | — | — | — | ✓ |
+| `testing-discipline.md` — tests define done; /verify + /run-skill-generator | — | — | — | — | ✓ |
 
-### Skills (12 unique; invoke via `/<name>`)
+Deleted in v0.2.0: `meta-governance.md`, `verification-before-done.md`, `tikz-prevention.md` + `tikz-library-bundle.md` (→ `/tikz` skill's `PREVENTION.md`/`LIBRARIES.md`), `exploration-fast-track.md` + `exploration-folder-protocol.md` (→ `exploration.md`).
+
+### Skills (12 unique; invoke via `/<name>`; `/tikz` now carries `PREVENTION.md` + `LIBRARIES.md` and fires in prevention mode BEFORE writing new TikZ)
 
 | Skill | Source | info | research | paper | paper-latex | code |
 |---|---|:-:|:-:|:-:|:-:|:-:|
 | `permission-check` | pedrohcgs | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `checkpoint` | pedrohcgs — structured session handoff (state, pointers, next actions) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `humanizer` | [groundnuty/humanizer](https://github.com/groundnuty/humanizer) (git upstream, refreshable) | — | — | ✓ | ✓ | — |
+| `humanizer` | [blader/humanizer](https://github.com/blader/humanizer) (git upstream, refreshable) | — | — | ✓ | ✓ | — |
 | `analyze-paper` | local (generalized from a ccgrid2026 paper repo) | — | — | ✓ | ✓ | — |
 | `verify-claims` | [pedrohcgs](https://github.com/pedrohcgs/claude-code-my-workflow) — CoVe via forked subagent | — | — | ✓ | ✓ | — |
 | `respond-to-referees` | pedrohcgs — R&R response letter generator | — | — | ✓ | ✓ | — |
@@ -181,11 +169,11 @@ Dispatched via `Task`/`Agent` subagents, not directly by the user. Format-agnost
 
 ### Attribution
 
-The `paper` and `paper-latex` profiles adopt 17 pieces from [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) (MIT). `paper-latex` also vendors 1 piece from [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools) (use freely, attribution appreciated). Both profiles vendor [groundnuty/humanizer](https://github.com/groundnuty/humanizer) (git-upstream-sourced, refreshable via `refresh-skills.sh`). Each vendored file carries an inline attribution header.
+The `paper` and `paper-latex` profiles adopt 17 pieces from [pedrohcgs/claude-code-my-workflow](https://github.com/pedrohcgs/claude-code-my-workflow) (MIT). `paper-latex` also vendors 1 piece from [scunning1975/MixtapeTools](https://github.com/scunning1975/MixtapeTools) (use freely, attribution appreciated). Both profiles vendor [blader/humanizer](https://github.com/blader/humanizer) (git-upstream-sourced, refreshable via `refresh-skills.sh`). Each vendored file carries an inline attribution header.
 
 ## Requirements
 
-- [Claude Code](https://claude.com/claude-code) v2.1.113 or later (for Opus 4.7 support, sandbox-bypass fix, and exec-wrapper deny coverage) (needed for `PreCompact` hook with `$CLAUDE_TRANSCRIPT_PATH`, `ConfigChange` hook, `sandbox.failIfUnavailable`).
+- [Claude Code](https://claude.com/claude-code) **v2.1.187 or later** — the floor tracks the newest settings key the template ships (`sandbox.credentials`, added CC v2.1.187; silently inert below that). Earlier features assumed: `PreCompact`/`ConfigChange` hooks, exec-wrapper deny coverage (v2.1.113+), `Edit(path)` file-permission semantics (v2.1.210 recommended). npm `stable` dist-tag satisfies the floor.
 - `jq` on your `$PATH` (for the init script's deep-merge).
 - `git` on your `$PATH` (for the paper profiles' upstream-sourced skill refresh; optional otherwise).
 - **Scholar Gateway** claude.ai connector — enable in claude.ai account settings if using `research`, `paper`, or `paper-latex` profiles.
@@ -211,6 +199,49 @@ The `paper` and `paper-latex` profiles adopt 17 pieces from [pedrohcgs/claude-co
 ### Escape hatch
 
 - `~/.claude/settings.local.json` or `.claude/settings.local.json` (gitignored) — merge with base at load time. Per-project `allow`/`ask`/`deny` overrides and hook activations live here.
+
+## The MCP layer (v0.2.0+)
+
+Each profile ships a **`.mcp.json.example`** at the repo root — pinned, opt-in MCP servers relevant to that profile (literature search, reference management, k8s, databases…). The file is valid JSON as shipped: every server is documented under an inert `"//<name>"` key; enable one by copying the file to `.mcp.json` and renaming its `"//<name>-uncomment"` key to `"<name>"`.
+
+Three rules keep this safe:
+
+1. **Do not rename the server keys.** The template pre-ships `permissions.allow` entries (and for `papers`, Sci-Hub **deny** rules) keyed to these exact names — renaming silently disarms them.
+2. **MCP servers run outside the Bash sandbox.** `sandbox.network`, `denyRead`, and `credentials` do not constrain them. Enable only servers you trust; the `fetch` server in particular can reach internal IPs (upstream's own SSRF caution) and therefore ships commented-out.
+3. **Live config stays local.** `.mcp.json` and `k8s-mcp.toml` are gitignored (they can carry DSNs and kubeconfig paths); use `${ENV_VAR}` references, never inline secrets. The `.example` files are template-owned and regenerated by `upgrade.sh`; your live `.mcp.json` is never touched.
+
+Local servers need `uv` (for `uvx`) or Node (for `npx`) on PATH. Servers are version-pinned; bumping a pin is a deliberate act (watch the upstream repo for CVEs — the template refreshes pins per release, but your live `.mcp.json` is yours to update).
+
+## Sandbox `excludedCommands` — why each entry (v0.2.0+)
+
+Excluded commands run **entirely outside** the sandbox, and matching is broad (a pattern can match the whole invocation — [claude-code#45113](https://github.com/anthropics/claude-code/issues/45113), [#81157](https://github.com/anthropics/claude-code/issues/81157)). v0.2.0 removed `git:*` (it unsandboxed most autonomous commands, nullifying `denyRead`/`credentials` — the highest-severity finding of our July 2026 audit) and the substring-hazard entries (`nix:*` matched "unix"; `aws:*`/`az:*`/`gcloud:*` in the code profile matched ordinary words). What remains, and why:
+
+| Entry | Why it cannot run sandboxed |
+|---|---|
+| `ssh:*`, `scp:*`, `rsync:*` | Remote transport; needs agent sockets + arbitrary hosts |
+| `devbox:*` | Nix-backed store writes outside allowed paths |
+| `gpg:*`, `gpg-agent:*` | Signing needs the `~/.gnupg` agent socket that `denyRead` guards |
+| `helm/kubectl/kustomize/terraform/docker/podman:*` (code profile) | Go-binary TLS fails under Seatbelt; docker daemon socket |
+
+Git now runs **sandboxed**. If signed tags or ssh-remote pushes fail in your environment, the failed command falls back to the regular permission flow (a prompt, not breakage); a per-repo escape hatch is `settings.local.json` → `sandbox.excludedCommands: ["git tag:*"]` — scope it to the narrow operation, never `git:*`.
+
+## Auto mode and the classifier (user-machine config)
+
+Claude Code's auto mode (default-on) is a classifier gate that runs *after* permission rules. Two things surprise people: it **suspends broad `Bash` allow rules** (bare `Bash` in allow does not mean "no prompts" — narrow rules like `Bash(npm test)` are honored, broad ones go to the classifier), and **subagents inherit it** (v2.1.212+), escalating classifier blocks to the leader. The fix is never to disable auto mode — it's to tell the classifier what to trust, in **`~/.claude/settings.json`** (the classifier deliberately ignores project settings so a checked-in repo can't self-trust):
+
+```json
+{
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "Key internal services: the host 'build-box' and its Kubernetes clusters are trusted internal dev infrastructure.",
+      "Local scratch: $TMPDIR / /tmp and clones under it are trusted local working areas, not external destinations."
+    ]
+  }
+}
+```
+
+Triage denials via `/permissions` → Recently denied (the reason names the fix); verify with `claude auto-mode config`. This is user-machine config — the template can't ship your trusted-infra list, which is why this section lives here and not in a rule.
 
 ## Versioning and release model
 

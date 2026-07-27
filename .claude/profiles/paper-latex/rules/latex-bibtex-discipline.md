@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.tex"
+  - "**/*.bib"
+---
+
 # LaTeX + BibTeX discipline
 
 Applied when the paper's source is LaTeX.

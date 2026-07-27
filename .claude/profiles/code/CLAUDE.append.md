@@ -4,24 +4,8 @@
 
 Code-centric work — writing and refactoring code. Language-agnostic baseline.
 
-### Recommended next step: `/configure-ecc`
+**At first init,** run `/run-skill-generator` to capture this repo's app-launch recipe as a committed skill, and `/verify` to capture its verification recipe. Both beat re-describing the same commands to every new session.
 
-For language-specific reviewers and patterns (go-reviewer, python-reviewer, django-patterns, springboot-tdd, etc.), run the [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) plugin's interactive installer:
+**Toolchain:** this profile assumes [devbox](https://www.jetify.com/devbox) for toolchain management. Using Nix flakes directly, or another manager? Adapt `.claude/rules/devbox-usage.md` — the rest of the profile does not depend on it.
 
-```
-/configure-ecc
-```
-
-Pick only the skills/agents relevant to your language. This is opt-in — the template does not enable `everything-claude-code` by default because the full bundle (183 skills, 48 agents) is heavy.
-
-### Devbox
-
-This profile assumes [devbox](https://www.jetify.com/devbox) for toolchain management. If you prefer Nix flakes directly, or another toolchain manager, see `rules/devbox-usage.md` and adapt.
-
-### Active profile-specific rules
-
-- `writing-quality.md` (from info — still applies to code comments and docs).
-- `makefile-conventions.md` — standard Make targets.
-- `devbox-usage.md` — devbox idioms and CI.
-- `testing-discipline.md` — TDD loop, coverage, test layout.
-- `verification-before-done.md` — the "am I actually done?" gate.
+**Language-specific reviewers are opt-in, not shipped.** Run `/configure-ecc` from the [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) plugin and pick only what your language needs; the full bundle (183 skills, 48 agents) is too heavy to enable by default.

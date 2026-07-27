@@ -10,7 +10,7 @@ allowed-tools: ["Read", "Grep", "Glob", "Task", "Write"]
 
 # /verify-claims — Chain-of-Verification on a Draft
 
-Fact-check a draft using the **Post-Flight Verification protocol** ([`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md)).
+Fact-check a draft using the **Post-Flight Verification protocol**. This skill is where that protocol lives; [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md) is the trigger rule that points here.
 
 **Input:** `$ARGUMENTS` — path to a file containing the draft (markdown, .qmd, .tex, .md) or a shorthand pointer. Optional flags:
 
@@ -143,5 +143,18 @@ A citation can pass `/validate-bib` (the paper is real, the DOI resolves) and st
 ## Cross-references
 
 - [`.claude/agents/claim-verifier.md`](../../agents/claim-verifier.md) — the forked verifier.
-- [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md) — the protocol.
+- [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md) — the trigger rule.
 - MEMORY.md `[LEARN:pattern]` on Chain-of-Verification vs critic-fixer vs cross-artifact review.
+
+
+---
+
+## When post-flight verification is mandatory
+
+Any skill whose output contains factual claims verifiable against a source runs this protocol before returning: `/lit-review` and `/research-ideation` (citations, negative-literature claims, dataset and feasibility claims), `/respond-to-referees` ("we added X on page Y"), `/review-paper --peer` (novelty-probe claims), and any drafting skill that cites. Mechanical skills (`/compile-latex`, `/extract-tikz`, `/commit`) are exempt — a compiler already verifies their output.
+
+Each such skill surfaces a Post-Flight block in its response: claims extracted, claims verified independently, outcome, and per-tier detail. The user must be able to see what was checked.
+
+**Fail closed.** If the verifier errors, returns malformed output, or times out, do not silently ship the draft. Say so: "Post-Flight verification failed (…). Draft has not been independently checked. Treat the output as provisional." Verification discipline matters most exactly when things are going sideways.
+
+**Opt-out.** `--no-verify` (in the calling skill) or `--no-fail-closed` (here) skips or downgrades the check — for speed-critical iteration, or when the user is reading the sources themselves. Document the opt-out in the calling skill's argument hints.

@@ -20,10 +20,11 @@
 
 ## Rules applied
 
-See `.claude/rules/` for rule files loaded into every session:
+See `.claude/rules/` for the rule set (some load every session, some only when matching files are touched):
 
-- `autonomous-work.md` — how to behave when running unattended
-- `pr-discipline.md` — commit message format and PR structure
-- `project-conventions.md` — per-project overrides (placeholder; fill in)
+- `autonomous-work.md` — how to behave when running unattended (always)
+- `pr-discipline.md` — commit message format and PR structure (always)
+- `operations.md` — config mechanics: permission rules, MCP allow entries, deny-pattern coverage (when touching settings/MCP files)
+- `project-conventions.md` — per-project overrides (fill in per project)
 
 <!-- Profile-specific rules are listed here by `.claude/init.sh`. -->

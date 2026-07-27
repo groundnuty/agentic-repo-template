@@ -1,28 +1,11 @@
-<\!-- Profile: paper-latex -->
+<!-- Profile: paper-latex -->
 
 ## Profile: paper-latex
 
-LaTeX + BibTeX + TikZ layer on top of the generic `paper` profile. Apply when the manuscript is compiled with LaTeX and figures are authored in TikZ.
+LaTeX + BibTeX + TikZ layer on top of `paper`. Apply when the manuscript is compiled with LaTeX and figures are authored in TikZ. Everything here is additive — the `paper` workflow is unchanged.
 
-### Active additional rules
+**Compile discipline** lives in `.claude/rules/latex-bibtex-discipline.md`, which is path-scoped: it loads when you touch a `.tex` or `.bib` file, not on every session. Read it before editing either.
 
-- `latex-bibtex-discipline.md` — LaTeX source conventions, BibTeX hygiene, stable commit discipline for auto-generated files.
-- `tikz-prevention.md` — 6-rule protocol to prevent common TikZ failure modes (P1 explicit node dimensions, P2 coordinate map, P3 no bare `scale=`, P4 directional edge labels, P5 start from snippets, P6 one `tikzpicture` per idea).
-- `tikz-library-bundle.md` — canonical TikZ preamble (`positioning`, `arrows.meta`, `calc`, `shapes.geometric`, `shapes.misc`, `decorations.pathreplacing`, `patterns`, `matrix`, `fit`) + specialty package guide (`tikz-cd`, `pgfplots`, `circuitikz`, `forest`).
+**Start TikZ figures from a snippet,** never from scratch — copy the nearest of `.claude/rules/tikz-snippets/{flowchart,tree,graph,plot,block-diagram}.tex`, compile it standalone, then `\input{}` it into the manuscript.
 
-### TikZ figures
-
-Canonical diagram starting points live at `.claude/rules/tikz-snippets/`:
-
-- `flowchart.tex`, `tree.tex`, `graph.tex`, `plot.tex`, `block-diagram.tex`
-
-Workflow: copy nearest snippet → edit → compile standalone → `\input{}` into paper. See `tikz-snippets/README.md`.
-
-### Additional skills
-
-- `/tikz [path/to/file.tex]` — TikZ collision-audit tool. 6-pass visual audit using mathematical gap calculations rather than eyeballing. Adapted from [MixtapeTools](https://github.com/scunning1975/MixtapeTools).
-- `/validate-bib` — structural + semantic bib validation (missing entries, unused entries, DOI presence, drift).
-
-### Additional opt-in hook
-
-- `hooks/verify-reminder.py` — post-Edit reminder to compile/verify academic files (`.tex`, `.bib`). Enable by referencing in `.claude/settings.local.json`.
+**Opt-in hook:** `hooks/verify-reminder.py` — post-Edit reminder to recompile `.tex`/`.bib`. Enable by referencing it in `.claude/settings.local.json`.

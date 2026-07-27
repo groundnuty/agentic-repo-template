@@ -1,5 +1,12 @@
 {
   "enabledPlugins": {
     "context7@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "mcp__dblp__*",
+      "mcp__arxiv__*",
+      "mcp__openalex__*"
+    ]
   }
 }

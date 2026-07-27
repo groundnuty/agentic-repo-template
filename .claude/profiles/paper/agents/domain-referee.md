@@ -3,6 +3,7 @@ name: domain-referee
 description: Substantive referee for a manuscript. Reviews contribution, literature positioning, substantive argument, external validity, and journal fit. Calibrated to a target journal and primed with a disposition + pet peeves by the editor agent. Used by `/review-paper --peer`.
 tools: Read, Grep, Glob
 model: inherit
+memory: project
 ---
 
 <!-- Adapted from pedrohcgs/claude-code-my-workflow (MIT), https://github.com/pedrohcgs/claude-code-my-workflow -->

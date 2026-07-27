@@ -43,3 +43,14 @@ Run the mandatory proofreading protocol on paper/manuscript files. This produces
    - Total issues found per file
    - Breakdown by category
    - Most critical issues highlighted
+
+
+---
+
+## The full protocol: propose → approve → apply
+
+This skill is the **propose** step and deliberately stops there — `allowed-tools` excludes `Edit`, so a proofreading pass cannot rewrite prose in place. Never change manuscript prose without showing the proposed change first.
+
+**Approve.** The user reads the report and accepts all of it, accepts selectively, or asks for modifications. Nothing is written until they say so. Silence is not approval.
+
+**Apply.** Back in the session, apply only the approved items — `replace_all: true` for an issue with many identical instances — verify each edit landed, and report what was applied and what was skipped.

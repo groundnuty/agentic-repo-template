@@ -2,31 +2,16 @@
 
 Applied when this repo's primary output is prose.
 
-## Voice
+Match the length of written documents to what the task needs: cover the substance, but do not pad with filler sections, redundant summaries, or boilerplate.
 
-- Prefer active voice and concrete subjects. "The tool removed the entries" beats "the entries were removed."
-- Cut hedges. "Possibly", "arguably", "somewhat", "relatively" — delete unless the uncertainty is load-bearing.
-- Cut throat-clearing. "It's worth noting that", "in this context", "as mentioned" — remove.
+Lead with the finding, background second. One idea per paragraph. Active voice, concrete subjects. Cut hedges and throat-clearing ("it's worth noting that"). Never cite from memory.
 
-## Banned AI-smell patterns
+Avoid:
 
-- **Negative parallelisms:** "Not just X but Y" without substance. Delete or replace with direct statement.
-- **Rule of three, symmetric:** "Fast, reliable, and scalable" is suspicious. Keep only items that are actually true and distinct.
-- **Inflated verbs:** "delves into", "navigates", "unpacks", "explores" — replace with specific action.
-- **Em dash overuse:** one pair per paragraph max. Prefer a period or comma.
-- **Transition tokens:** "Moreover", "Furthermore", "Additionally", "Indeed" — remove; let the argument flow.
+- **Negative parallelism** — "not just X but Y" with nothing behind it.
+- **Symmetric rule of three** — "fast, reliable, and scalable"; keep only what is distinct.
+- **Inflated verbs** — "delves into", "navigates", "unpacks", "underscores".
+- **Em-dash overuse** — one pair per paragraph, maximum.
+- **Transition tokens** — "Moreover", "Furthermore", "Additionally", "Indeed".
 
-## Structure
-
-- Lead with the finding. Background second. Method third.
-- One idea per paragraph.
-- If a sentence has more than two commas, split it.
-- Bullet lists for enumerations of 3+. Prose for arguments.
-
-## Citations
-
-If the document references external sources, maintain a bibliography section (markdown footnotes or a BibTeX file). Never cite from memory without verification — run WebSearch or read the source.
-
-## When humanizer is installed (paper profile)
-
-`paper` profile ships `humanizer` as a vendored skill. If present in `.claude/skills/humanizer/`, invoke via `/humanizer` when polishing prose.
+For deep de-AI-ification of a full draft, run `/humanizer` (paper profiles).

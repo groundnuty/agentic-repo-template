@@ -1,6 +1,6 @@
 ---
 name: review-paper
-description: Comprehensive manuscript review with three modes: single-pass (default), --adversarial critic-fixer loop, and --peer [journal] simulated peer-review pipeline (editor + 2 dispositioned referees + editorial decision, calibrated to a target journal). R&R continuation via --peer --r2/--r3; hostile-editor stress test via --peer --stress. Reviews referenced analysis scripts and runs /audit-reproducibility on them unless --no-cross-artifact.
+description: "Comprehensive manuscript review with three modes: single-pass (default), --adversarial critic-fixer loop, and --peer [journal] simulated peer-review pipeline (editor + 2 dispositioned referees + editorial decision, calibrated to a target journal). R&R continuation via --peer --r2/--r3; hostile-editor stress test via --peer --stress. Reviews referenced analysis scripts and runs /audit-reproducibility on them unless --no-cross-artifact."
 argument-hint: "[paper path] [--adversarial | --peer <journal> [--r2 | --r3 | --stress] [--no-novelty-check]] [--no-cross-artifact]"
 allowed-tools: ["Read", "Grep", "Glob", "Write", "Edit", "Bash", "Task"]
 ---
@@ -86,7 +86,7 @@ This mode is materially different from `--adversarial`: adversarial runs the sam
    - a code review of each referenced script — read it and check it actually produces the claimed outputs (forked subagent, results to `.claude/session-reports/cross_artifact_[paper]/review_[script].md`)
    - `/audit-reproducibility` on the manuscript + outputs dir (results to `.claude/session-reports/cross_artifact_[paper]/reproducibility.md`)
 
-   Merge critical cross-artifact findings (code bug invalidates paper claim, reproducibility FAIL) into a new "Cross-Artifact Findings" section at the top of the paper review report. See [`.claude/rules/cross-artifact-review.md`](../../rules/cross-artifact-review.md) for the full protocol.
+   Merge critical cross-artifact findings (code bug invalidates paper claim, reproducibility FAIL) into a new "Cross-Artifact Findings" section at the top of the paper review report. See "Cross-artifact protocol" at the end of this skill for the full contract.
 
 7. **If `--adversarial` is in `$ARGUMENTS`:** invoke the critic-fixer loop defined in the next section. Otherwise stop here.
 
@@ -328,11 +328,11 @@ After the loop ends, write `.claude/session-reports/paper_review_[sanitized_name
 
 ### Phase 0: Cross-artifact pre-flight (runs BEFORE desk review in --peer mode)
 
-Unless `--no-cross-artifact` is set, auto-invoke `/audit-reproducibility` on the manuscript + its outputs directory *first*. Any reproducibility FAIL becomes desk-reject-worthy evidence the editor can cite. See `.claude/rules/cross-artifact-review.md`.
+Unless `--no-cross-artifact` is set, auto-invoke `/audit-reproducibility` on the manuscript + its outputs directory *first*. Any reproducibility FAIL becomes desk-reject-worthy evidence the editor can cite. See "Cross-artifact protocol" at the end of this skill.
 
 Reports: `.claude/session-reports/cross_artifact_[paper]/reproducibility.md`.
 
-**Novelty-probe Post-Flight (new in v1.7.0).** The editor's novelty probe uses `WebSearch` to check whether the paper's contribution has been made before. WebSearch results can be hallucinated — fabricated prior work, misattributed findings, wrong years. Before the editor's desk review incorporates novelty-probe claims into its decision, those claims must pass Post-Flight Verification per [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md):
+**Novelty-probe Post-Flight (new in v1.7.0).** The editor's novelty probe uses `WebSearch` to check whether the paper's contribution has been made before. WebSearch results can be hallucinated — fabricated prior work, misattributed findings, wrong years. Before the editor's desk review incorporates novelty-probe claims into its decision, those claims must pass Post-Flight Verification per [`verify-claims`](../verify-claims/SKILL.md):
 
 1. The editor collects novelty-probe claims (e.g., "Smith 2022 already showed this exact result").
 2. Spawn `claim-verifier` via `Task` with `subagent_type=claim-verifier` and `context=fork`, passing the claims + verification questions + candidate source URLs. Forked fresh context is the CoVe independence trick.
@@ -381,7 +381,7 @@ Each referee must include "What would change my mind: [specific ask]" on every M
 
 Read both referee reports. **Reduce** their findings: classify each MAJOR concern as FATAL / ADDRESSABLE / TASTE, then produce the editorial decision using the decision rule table in `editor.md`. The decision is a function of what the referees found — the editor is a reducer, not a third referee.
 
-**Post-judge hallucination gate.** The editor may **not** desk-reject or escalate the decision on a CRITICAL reason **neither referee raised**. Any editor-introduced blocker that is not traceable to a referee finding must either be re-verified in a fresh `claim-verifier` fork (`Task` with `subagent_type=claim-verifier` and `context=fork`, which has never seen the referee reports and so cannot self-confirm), or be dropped, labeled `[JUDGE-HALLUCINATED]` in the decision letter, and the decision recomputed without it. The gate is one-directional: the editor may always downgrade, de-duplicate, or reclassify a referee's concern. See [`.claude/rules/post-flight-verification.md`](../../rules/post-flight-verification.md).
+**Post-judge hallucination gate.** The editor may **not** desk-reject or escalate the decision on a CRITICAL reason **neither referee raised**. Any editor-introduced blocker that is not traceable to a referee finding must either be re-verified in a fresh `claim-verifier` fork (`Task` with `subagent_type=claim-verifier` and `context=fork`, which has never seen the referee reports and so cannot self-confirm), or be dropped, labeled `[JUDGE-HALLUCINATED]` in the decision letter, and the decision recomputed without it. The gate is one-directional: the editor may always downgrade, de-duplicate, or reclassify a referee's concern. See [`verify-claims`](../verify-claims/SKILL.md).
 
 Report: `.claude/session-reports/peer_review_[paper]/editorial_decision.md`.
 
@@ -417,3 +417,31 @@ This template ships **no** journal profiles — the pipeline is field-agnostic a
 
 For non-econ paper types in `methods-referee.md`, extend the paper-type list (e.g., biology: `observational / experimental / computational / review`).
 
+
+---
+
+## Cross-artifact protocol (the full contract)
+
+A paper's claims depend on the code that produced them, so reviewing the manuscript without the code reviews half the artifact. A bug in `02_clean` invalidates Table 2, and reading `manuscript.tex` alone cannot see it.
+
+**Detection is pattern-based and deliberately conservative** — a theory paper that happens to live in a repo containing scripts must not trigger this. Signals:
+
+- `\input{scripts/...}` or `\input{tables/...}`
+- `%% source: scripts/03_analyze.R` (or `.py`, `.do`, `.jl`, …) comments
+- Numeric claims in the text (estimates, coefficients, N, p-values) **combined with** a sibling `scripts/` directory
+- Table labels matching filenames under `scripts/**/_outputs/`
+
+If none are present, no cross-artifact work happens and `--no-cross-artifact` is a no-op.
+
+**Steps.**
+
+1. Build the list of scripts that produced content in this paper.
+2. Review each in a forked subagent — read it and verify it actually produces the claimed outputs, in whatever language it is written (R, Python, Stata, Julia, shell). This is correctness of the paper's numeric claims, not style. Save to `.claude/session-reports/cross_artifact_[paper]/review_[script].md`. (This template ships no language-specific code-review skill; if you have added one for your stack, invoke it here, otherwise review directly.)
+3. Run `/audit-reproducibility $manuscript scripts/**/_outputs/` once, saving to `.../reproducibility.md`.
+4. Add a **Cross-Artifact Findings** section at the top of the review report: scripts reviewed, reproducibility PASS/FAIL (k of m claims within tolerance), code-quality counts, then three tables — critical paper+code issues (paper claim / code location / issue), code-only issues (follow-up, non-blocking), paper-only issues.
+
+**Escalation.** An `/audit-reproducibility` FAIL on tolerance becomes CRITICAL in the paper review. A code CRITICAL that affects a paper claim escalates the same way. A code CRITICAL unrelated to any paper claim is filed as a separate action item.
+
+**Out of scope:** running R / Stata / Python / Julia (that is `/audit-reproducibility`'s job — it reads existing outputs), git-blame archaeology, and judging whether the authors write good code as distinct from whether their *results* are defensible. The results come first.
+
+**Ordering.** `--peer` runs cross-artifact as Phase 0, before the editor's desk review, so the editor holds reproducibility evidence when deciding. Default and `--adversarial` run it at Step 6b, after the paper review. Both orderings are valid.
