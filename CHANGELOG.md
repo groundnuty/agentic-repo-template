@@ -8,6 +8,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.3] — 2026-07-27
+
+Fix: `upgrade.sh` died silently (zero output, nonzero exit) on repos stamped **before v0.1.14** — their stamps lack the `cloud_compat=`/`strict_sandbox=` keys, and under `set -o pipefail` the failed `grep` in `stamp_get` killed the script before its first line. Found by the first fleet run (8 of 17 repos failed, in perfect correlation with stamp age); our functional tests only ever used freshly-stamped repos. `stamp_get` now tolerates missing keys; regression test upgrades a two-key v0.1.13-style stamp.
+
+---
+
 ## [v0.2.2] — 2026-07-27
 
 Fix: `fleet-upgrade.sh` found nothing when the root was a **symlink** (`~/repos -> Dropbox/...` — the exact first production run). Roots are now resolved physically before discovery. Regression test runs the fleet through a symlinked root.

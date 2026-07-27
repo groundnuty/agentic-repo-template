@@ -59,7 +59,9 @@ if [ ! -f "$STAMP" ]; then
   exit 1
 fi
 
-stamp_get() { grep "^$1=" "$STAMP" | head -1 | cut -d= -f2-; }
+# Tolerate missing keys: stamps older than v0.1.14/15 lack cloud_compat/strict_sandbox,
+# and under pipefail a failed grep would kill the script before any output.
+stamp_get() { { grep "^$1=" "$STAMP" || true; } | head -1 | cut -d= -f2-; }
 PROFILE="$(stamp_get profile)"
 OLD_VERSION="$(stamp_get version)"
 CLOUD_COMPAT="$(stamp_get cloud_compat)"
