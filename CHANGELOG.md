@@ -8,6 +8,23 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.8] — 2026-07-28
+
+**INCIDENT FIX — upgrades destroyed custom `.claude/` content (v0.2.0–v0.2.7).** The v0.2.0 upgrader replaced the whole `.claude/` tree, preserving only 4 hardcoded paths. Everything else a consumer kept in `.claude/` — custom rules, `scripts/`, `.macf/` frameworks, custom hooks, and hand-written `.claude/CLAUDE.md` project sections — was deleted on upgrade (recoverable from `.claude.pre-upgrade-*/`, but the live agent lost its project rules; this bit hard across a 49-repo fleet migration). The v0.2 pre-release review had recommended fence-or-diff for CLAUDE.md; the shipped implementation regenerated wholesale.
+
+**New model: overlay, not swap.**
+
+- Template-owned files (everything a fresh init generates) are **updated in place**.
+- `.claude/CLAUDE.md` and `rules/project-conventions.md` are **never overwritten** — the fresh template CLAUDE.md (with profile appends) is saved to the backup as `CLAUDE.md.template-new` for deliberate manual merge.
+- Files the template deliberately removed are deleted via a shipped manifest (`removed-files.txt`) — nothing else is ever deleted.
+- **Every other file under `.claude/` is user content and is not touched.**
+
+Regression test seeds the exact destroyed classes (custom rule, script, `.macf/env.*`, custom hook, edited CLAUDE.md, edited project-conventions, settings.local.json) into a customized repo and asserts all survive an upgrade in the live tree, while a design-removed file is deleted and template rules still update.
+
+**If you upgraded any repo with v0.2.0–v0.2.7:** check `.claude.pre-upgrade-*/` for custom files and your old `CLAUDE.md`; restore anything missing (`diff -r` the backup against `.claude/`).
+
+---
+
 ## [v0.2.7] — 2026-07-27
 
 Fix: `upgrade.sh`'s settings-diff report was blind to **`extraKnownMarketplaces`** — a custom marketplace a consumer had added would vanish on regenerate-not-merge upgrade with **no report line at all** (silent loss of a user setting, the exact class v0.2's review named "worse than not fixing it"). The partition loop now covers it, and `removed-entries.json` carries the key so a future template-side marketplace change partitions DO-NOT-RESTORE vs your-customization correctly. Found while scoping v0.3 (its `marketplaces`→`extraKnownMarketplaces` migration would have inherited the gap); shipped standalone because the silent-loss risk is real for any current consumer using a custom marketplace.

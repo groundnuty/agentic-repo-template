@@ -4,7 +4,7 @@ description: Upgrade this repo's .claude/ configuration to the latest agentic-re
 
 # /template-upgrade
 
-Upgrade the current repo to the latest [agentic-repo-template](https://github.com/groundnuty/agentic-repo-template) release. Reads `.claude/.template-version` for the profile and flags, so nothing needs to be specified. Regenerates the template-owned config (settings.json, skills/agents/hooks/templates/commands, profile rules), preserves your files, backs everything up first.
+Upgrade the current repo to the latest [agentic-repo-template](https://github.com/groundnuty/agentic-repo-template) release. Reads `.claude/.template-version` for the profile and flags, so nothing needs to be specified. Overlays template-owned files in place (settings.json, skills/agents/hooks/templates/commands, profile rules) — **custom files you added under `.claude/` are never touched**, `.claude/CLAUDE.md` and `rules/project-conventions.md` are never overwritten (the fresh template CLAUDE.md lands in the backup as `CLAUDE.md.template-new` for manual merge), and everything is backed up first.
 
 ## What to do
 
@@ -23,7 +23,7 @@ Upgrade the current repo to the latest [agentic-repo-template](https://github.co
    bash /tmp/arp-upgrade.sh
    ```
 
-   This backs up `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored), regenerates the template-owned config for this repo's stamped profile + flags — **including `.claude/CLAUDE.md`** (v0.2.0+: profile appends must reach upgraded repos; the previous copy is in the backup — merge personal edits from there) and declared root files (`.mcp.json.example`; your live `.mcp.json` is never touched) — and preserves `settings.local.json`, `rules/project-conventions.md`, `audit.log`, and `session-reports/`. The stamp is bumped to the new version.
+   This backs up `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored), then **overlays** template-owned files in place for this repo's stamped profile + flags. Never overwritten: `.claude/CLAUDE.md` (the fresh template version with profile appends is saved to the backup as `CLAUDE.md.template-new` for manual merge), `rules/project-conventions.md`, and **any custom file you added** (rules, scripts, hooks, `.macf/`, …). Deliberately-removed template files are deleted per `removed-files.txt`. Root `.example` files regenerate; your live `.mcp.json` is never touched. The stamp is bumped.
 
 3. **Reconcile the settings.json report.** If the upgrader printed a "settings.json entries in your current config but not in the new template output" section, each listed entry is **either** a customization you added **or** an entry the new version intentionally removed. Decide per entry using the CHANGELOG delta the upgrader printed:
    - If an entry was **removed by the template** (mentioned in the CHANGELOG, e.g. a deprecated `Write(path)` deny) — leave it dropped.

@@ -18,7 +18,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.2.7"
+TEMPLATE_VERSION="v0.2.8"
 
 usage() {
   cat <<EOF
@@ -283,6 +283,7 @@ self_delete() {
   rm -rf .claude/profiles
   rm -f  .claude/init.sh
   rm -f  .claude/removed-entries.json  # upgrade-tooling manifest; read from the template source, not consumers
+  rm -f  .claude/removed-files.txt     # same class: upgrade-tooling manifest
 }
 
 main() {

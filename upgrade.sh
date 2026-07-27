@@ -8,15 +8,17 @@
 #   curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh | bash
 #
 # It backs up the existing .claude/ to .claude.pre-upgrade-<oldversion>/, then
-# regenerates the template-owned config from the latest release:
-#   - .claude/ (settings.json, rules, skills, agents, hooks, templates, commands)
-#   - .claude/CLAUDE.md (REGENERATED as of v0.2.0 — profile appends must reach
-#     upgraded repos; your previous copy is in the backup, merge personal edits
-#     from there; durable per-project notes belong in rules/project-conventions.md)
-#   - declared root-level template files (.mcp.json.example, k8s-mcp.toml.example)
-#     — your live .mcp.json is NEVER touched
-# and PRESERVES: settings.local.json, rules/project-conventions.md, audit.log,
-# session-reports/. The stamp is bumped to the new version.
+# OVERLAYS the template-owned files in place (v0.2.8+):
+#   - template files (settings.json, rules, skills, agents, hooks, templates,
+#     commands) are updated; files the template deliberately removed are deleted
+#     (manifest: removed-files.txt); root-level .example files are regenerated
+#   - .claude/CLAUDE.md and rules/project-conventions.md are NEVER overwritten —
+#     the fresh template CLAUDE.md lands in the backup as CLAUDE.md.template-new
+#     for manual merge
+#   - EVERYTHING ELSE in .claude/ — custom rules, scripts/, hooks, .macf/, any
+#     file you added — is NOT TOUCHED. (v0.2.0–v0.2.7 upgrades violated this and
+#     destroyed custom files; recover them from .claude.pre-upgrade-*/.)
+# The stamp is bumped to the new version.
 #
 # The settings report distinguishes entries the NEW TEMPLATE REMOVED (do not
 # restore them) from YOUR CUSTOMIZATIONS (move to settings.local.json).
@@ -196,7 +198,7 @@ report_custom_settings() {
 if [ "$DRY_RUN" -eq 1 ]; then
   echo
   echo "[dry-run] would back up .claude/ -> .claude.pre-upgrade-${OLD_VERSION:-unknown}/"
-  echo "[dry-run] would regenerate: .claude/ (incl. CLAUDE.md), root files: $ROOT_FILES"
+  echo "[dry-run] would overlay template-owned files in place (CLAUDE.md + rules/project-conventions.md never overwritten;\n[dry-run] custom files untouched); apply removed-files.txt deletions; regenerate root files: $ROOT_FILES"
   echo "[dry-run] would preserve:   settings.local.json, rules/project-conventions.md, audit.log, session-reports/"
   report_custom_settings
   echo
@@ -214,30 +216,36 @@ cp -R .claude "$BACKUP"
 # Emit the settings report before we replace anything.
 report_custom_settings
 
-# Assemble the final tree INSIDE $WORK first (copy preserved user files into it),
-# then swap. This closes the non-atomic window where a crash between removal and
-# restore could strand user files outside the repo.
-preserve_paths="settings.local.json rules/project-conventions.md audit.log"
-for f in $preserve_paths; do
-  if [ -e ".claude/$f" ]; then
-    mkdir -p "$WORK/.claude/$(dirname "$f")"
-    rm -rf "$WORK/.claude/${f:?}"
-    cp -R ".claude/$f" "$WORK/.claude/$f"
-  fi
+# OVERLAY, not swap (v0.2.8 — the v0.2.0 swap DESTROYED every custom file a
+# consumer kept in .claude/: custom rules, scripts/, .macf/, hooks, edited
+# CLAUDE.md. Post-incident model:
+#   - template-owned files are UPDATED IN PLACE (every file the fresh init
+#     generated in $WORK), except KEEP_IF_PRESENT files that hold user content
+#   - files the template REMOVED on purpose are deleted per the manifest
+#     ($SRC/.claude/removed-files.txt) — the backup keeps copies
+#   - EVERYTHING ELSE in .claude/ is user content and is NOT TOUCHED.
+KEEP_IF_PRESENT="CLAUDE.md rules/project-conventions.md"
+
+( cd "$WORK/.claude" && find . -type f | sed 's|^\./||' ) | while IFS= read -r f; do
+  case " $KEEP_IF_PRESENT " in
+    *" $f "*) [ -e ".claude/$f" ] && continue ;;
+  esac
+  mkdir -p ".claude/$(dirname "$f")"
+  cp -p "$WORK/.claude/$f" ".claude/$f"
 done
-if [ -d .claude/session-reports ]; then
-  rm -rf "$WORK/.claude/session-reports"
-  cp -R .claude/session-reports "$WORK/.claude/session-reports"
+
+# The fresh template CLAUDE.md (profile appends included) goes NEXT TO the old
+# copy in the backup for manual merge — never over the user's live file.
+if [ -e ".claude/CLAUDE.md" ] && ! diff -q "$WORK/.claude/CLAUDE.md" ".claude/CLAUDE.md" >/dev/null 2>&1; then
+  cp -p "$WORK/.claude/CLAUDE.md" "$BACKUP/CLAUDE.md.template-new" 2>/dev/null || true
 fi
 
-OLD_TREE=".claude.upgrade-old.$$"
-mv .claude "$OLD_TREE"
-if mv "$WORK/.claude" .claude; then
-  rm -rf "$OLD_TREE"
-else
-  mv "$OLD_TREE" .claude
-  echo "upgrade: swap failed; original .claude/ restored (backup at $BACKUP/)." >&2
-  exit 4
+# Deliberate removals (renames/deletions across template versions).
+if [ -f "$SRC/.claude/removed-files.txt" ]; then
+  while IFS= read -r rf; do
+    case "$rf" in ""|\#*) continue ;; esac
+    rm -f ".claude/$rf" 2>/dev/null || true
+  done < "$SRC/.claude/removed-files.txt"
 fi
 
 # Root-level template files: regenerate the declared .example files. The user's
@@ -253,8 +261,9 @@ fi
 
 echo
 echo "Upgraded ${OLD_VERSION:-unknown} -> ${NEW_VERSION} (profile: $PROFILE)."
-echo "  Backup:      $BACKUP/ (your previous .claude/ — gitignored; delete once satisfied)"
-echo "  Preserved:   settings.local.json, rules/project-conventions.md, audit.log, session-reports/"
-echo "  Regenerated: .claude/CLAUDE.md (previous copy in the backup — merge any personal edits;"
-echo "               durable notes belong in rules/project-conventions.md), root: $ROOT_FILES"
+echo "  Backup:    $BACKUP/ (your previous .claude/ — gitignored; delete once satisfied)"
+echo "  Untouched: .claude/CLAUDE.md, rules/project-conventions.md, settings.local.json, audit.log,"
+echo "             session-reports/, and every custom file you added under .claude/"
+echo "  Merged:    template-owned files updated in place; fresh template CLAUDE.md (with this"
+echo "             profile's appends) saved to $BACKUP/CLAUDE.md.template-new for manual merge"
 echo "  Review the settings report above (if any) and the backup before committing."

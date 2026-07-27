@@ -1,0 +1,10 @@
+# Files (paths relative to .claude/) the template REMOVED on purpose.
+# upgrade.sh deletes these from consumer repos; the pre-upgrade backup keeps copies.
+# v0.2.0 (D44 context-engineering rethink):
+rules/meta-governance.md
+rules/exploration-fast-track.md
+rules/exploration-folder-protocol.md
+rules/verification-before-done.md
+rules/tikz-prevention.md
+rules/tikz-library-bundle.md
+skills/humanizer/WARP.md

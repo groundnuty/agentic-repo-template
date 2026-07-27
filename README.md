@@ -314,7 +314,7 @@ Or, from inside a Claude Code session in the repo, run the **`/template-upgrade`
 What it does:
 
 - **Backs up** the existing `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored).
-- **Regenerates** the template-owned config for your stamped profile + flags: `settings.json`, `skills/ agents/ hooks/ templates/ commands/`, profile rules, `refresh-skills.sh`.
+- **Overlays** the template-owned files in place for your stamped profile + flags: `settings.json`, `skills/ agents/ hooks/ templates/ commands/`, profile rules, `refresh-skills.sh`. **Anything you added under `.claude/` is never touched** (v0.2.8+ — earlier upgraders destroyed custom files; recover from `.claude.pre-upgrade-*/`), and `.claude/CLAUDE.md` / `rules/project-conventions.md` are never overwritten (fresh template CLAUDE.md → backup as `CLAUDE.md.template-new`).
 - **Preserves** your files: `settings.local.json`, `rules/project-conventions.md`, `.claude/CLAUDE.md`, `audit.log`, `session-reports/`.
 - **Bumps the stamp** to the new version and prints the CHANGELOG delta.
 
