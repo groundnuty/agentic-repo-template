@@ -26,7 +26,7 @@ Until then its first tool call prompts, and the answer sticks for the rest of th
 
 `sandbox.network`, `sandbox.filesystem.denyRead`, and `sandbox.credentials` constrain shell commands. They do **not** constrain MCP servers — an MCP server reads and reaches whatever its own process can. Enable only servers you trust.
 
-Keep the server keys in `.mcp.json` matching the prefixes the shipped allow/deny rules use. Renaming the `papers` key silently disarms its Sci-Hub denies: the rules still match a server name that no longer exists.
+Keep the server keys in `.mcp.json` matching the prefixes the shipped allow/deny rules use. Renaming the `papers` key silently disarms its Sci-Hub denies, and `enabledMcpjsonServers` auto-enables only the curated key names — a renamed server also loses auto-enable and prompts.
 
 ## File-permission rules use `Edit(path)`, not `Write(path)`
 

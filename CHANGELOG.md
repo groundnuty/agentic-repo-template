@@ -8,6 +8,19 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.6] — 2026-07-27
+
+**Settings audit — the base `settings.json` now says exactly what we mean.**
+
+- **`enabledMcpjsonServers`** lists the ten curated `.mcp.json.example` server keys: enabling one of *our* servers is prompt-free, while any other server in a repo's `.mcp.json` still asks. A test now enforces settings ↔ example-key coherence (the do-not-rename contract, mechanized).
+- **`mcp__claude_ai_alphaXiv__*` allow** — the doc-13 adoption that had silently never landed (its `/mcp` name probe was forgotten). Closes the preprint/conference search gap alongside DBLP.
+- **`NotebookEdit` bare allow** — the one file-editing tool that still prompted (`Edit(path)` rules covered it for path checks; the tool-level allow was missing).
+- **`Bash(git clean -df*)` / `-xf*` denies** — flag-order permutations that slipped past `git clean -f*` (the git-guardrails hook caught them; the always-on deny layer now does too).
+- **`~/.cache/uv` + `~/.local/share/uv` in `sandbox.filesystem.allowWrite`** — our own docs say `uvx docling` / `uvx ocrmypdf`; without these the first sandboxed run failed on cache writes and fell back to a prompt.
+- Schema check: every top-level key validates against schemastore except `marketplaces` — the known `marketplaces`-vs-`extraKnownMarketplaces` question (doc 13 §5); ours works in production across ~50 repos, and the v0.3 spike resolves the canonical form empirically.
+
+---
+
 ## [v0.2.5] — 2026-07-27
 
 Fix: the fleet report died (git rc=128 under `set -e`) on stamped repos with **no `.git`** — real fleets contain them (template-inited, never `git init`-ed). Field collection is now best-effort: such repos list as `dirty=-` and remain upgradable. Regression test adds a git-less repo to the test fleet.
