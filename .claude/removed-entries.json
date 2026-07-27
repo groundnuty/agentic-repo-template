@@ -15,6 +15,7 @@
   ".marketplaces": [
     "superpowers-marketplace"
   ],
+  ".extraKnownMarketplaces": [],
   ".env": [
     "ENABLE_LSP_TOOL"
   ],

@@ -8,6 +8,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.7] — 2026-07-27
+
+Fix: `upgrade.sh`'s settings-diff report was blind to **`extraKnownMarketplaces`** — a custom marketplace a consumer had added would vanish on regenerate-not-merge upgrade with **no report line at all** (silent loss of a user setting, the exact class v0.2's review named "worse than not fixing it"). The partition loop now covers it, and `removed-entries.json` carries the key so a future template-side marketplace change partitions DO-NOT-RESTORE vs your-customization correctly. Found while scoping v0.3 (its `marketplaces`→`extraKnownMarketplaces` migration would have inherited the gap); shipped standalone because the silent-loss risk is real for any current consumer using a custom marketplace.
+
+---
+
 ## [v0.2.6] — 2026-07-27
 
 **Settings audit — the base `settings.json` now says exactly what we mean.**

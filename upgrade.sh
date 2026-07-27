@@ -160,7 +160,7 @@ report_custom_settings() {
   # Keys the old config has that the new one doesn't: plugins, marketplaces,
   # env vars, hook events, and top-level scalars.
   local sec
-  for sec in enabledPlugins marketplaces env hooks; do
+  for sec in enabledPlugins marketplaces extraKnownMarketplaces env hooks; do
     local dk
     dk="$(jq -rn --slurpfile o "$old" --slurpfile n "$new" \
       "((\$o[0].$sec//{})|keys) - ((\$n[0].$sec//{})|keys) | .[]" 2>/dev/null || true)"
