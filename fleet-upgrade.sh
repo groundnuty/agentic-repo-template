@@ -87,6 +87,9 @@ is_skipped() {
 # Discover stamped repos.
 REPOS=()
 for root in "${ROOTS[@]}"; do
+  # Resolve the root physically: a symlinked root (~/repos -> Dropbox/...) is
+  # common and find(1) does not descend symlinked start points.
+  root="$(cd "$root" 2>/dev/null && pwd -P)" || { echo "fleet-upgrade: root not a directory: $root" >&2; exit 2; }
   while IFS= read -r stamp; do
     REPOS+=("${stamp%/.claude/.template-version}")
   done < <(find "$root" -name .template-version -path '*/.claude/*' 2>/dev/null | sort)

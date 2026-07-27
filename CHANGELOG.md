@@ -8,6 +8,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.2] — 2026-07-27
+
+Fix: `fleet-upgrade.sh` found nothing when the root was a **symlink** (`~/repos -> Dropbox/...` — the exact first production run). Roots are now resolved physically before discovery. Regression test runs the fleet through a symlinked root.
+
+---
+
 ## [v0.2.1] — 2026-07-27
 
 **`fleet-upgrade.sh` — mass upgrades across many repos.** One command discovers every template-initialized repo under the given roots (by its `.claude/.template-version` stamp), reports version/profile/dirty-count, and — with `--apply` — runs `upgrade.sh` in each, capturing per-repo logs (including the partitioned settings reports) and a final upgraded/current/skipped/failed summary. Safety: report-only by default; repos with a **live Claude Code session** (a `claude` process cwd'd inside) are auto-skipped unless `--force-live`; `--skip <name>` excludes repos; it never commits and never pushes. Operator tooling: `init.sh` removes it from consumer repos like `bootstrap.sh`/`upgrade.sh`.
