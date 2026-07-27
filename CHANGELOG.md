@@ -8,6 +8,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.4] — 2026-07-27
+
+Release-hygiene fix: tags v0.2.1–v0.2.3 shipped `init.sh` still claiming `TEMPLATE_VERSION="v0.2.0"` (the bump edits silently never landed), so fleet-upgraded repos were stamped `v0.2.0` — content-correct (those releases only changed operator scripts), version-string wrong. Now bumped for real, and a new test asserts `TEMPLATE_VERSION` equals the newest CHANGELOG entry so a missed bump fails the suite instead of shipping.
+
+---
+
 ## [v0.2.3] — 2026-07-27
 
 Fix: `upgrade.sh` died silently (zero output, nonzero exit) on repos stamped **before v0.1.14** — their stamps lack the `cloud_compat=`/`strict_sandbox=` keys, and under `set -o pipefail` the failed `grep` in `stamp_get` killed the script before its first line. Found by the first fleet run (8 of 17 repos failed, in perfect correlation with stamp age); our functional tests only ever used freshly-stamped repos. `stamp_get` now tolerates missing keys; regression test upgrades a two-key v0.1.13-style stamp.
