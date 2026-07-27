@@ -103,9 +103,12 @@ UPGRADED=0; SKIPPED=0; FAILED=0; CURRENT=0
 printf '%-52s %-9s %-11s %-6s %s\n' "repo" "version" "profile" "dirty" "action"
 for repo in "${REPOS[@]}"; do
   base="$(basename "$repo")"
-  ver="$(grep '^version=' "$repo/.claude/.template-version" | head -1 | cut -d= -f2)"
-  prof="$(grep '^profile=' "$repo/.claude/.template-version" | head -1 | cut -d= -f2)"
-  dirty="$(cd "$repo" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+  # Field collection is best-effort: a malformed stamp or a repo without .git
+  # (rc=128) must not kill the whole fleet run.
+  ver="$({ grep '^version=' "$repo/.claude/.template-version" || true; } | head -1 | cut -d= -f2)"
+  prof="$({ grep '^profile=' "$repo/.claude/.template-version" || true; } | head -1 | cut -d= -f2)"
+  dirty="$( (cd "$repo" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ') 2>/dev/null || echo - )"
+  git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || dirty=-
   action=""
   if is_skipped "$base"; then
     action="SKIP (--skip)"; SKIPPED=$((SKIPPED+1))

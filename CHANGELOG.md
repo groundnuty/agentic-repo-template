@@ -8,6 +8,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.5] — 2026-07-27
+
+Fix: the fleet report died (git rc=128 under `set -e`) on stamped repos with **no `.git`** — real fleets contain them (template-inited, never `git init`-ed). Field collection is now best-effort: such repos list as `dirty=-` and remain upgradable. Regression test adds a git-less repo to the test fleet.
+
+---
+
 ## [v0.2.4] — 2026-07-27
 
 Release-hygiene fix: tags v0.2.1–v0.2.3 shipped `init.sh` still claiming `TEMPLATE_VERSION="v0.2.0"` (the bump edits silently never landed), so fleet-upgraded repos were stamped `v0.2.0` — content-correct (those releases only changed operator scripts), version-string wrong. Now bumped for real, and a new test asserts `TEMPLATE_VERSION` equals the newest CHANGELOG entry so a missed bump fails the suite instead of shipping.
