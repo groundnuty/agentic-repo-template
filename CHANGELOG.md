@@ -8,6 +8,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.9] — 2026-07-28
+
+**`effortLevel` back to `xhigh`** (was `high` since v0.2.0). v0.2.0 followed the Opus 5 docs' "start with high" guidance; the operator's standing directive is **Opus 5 + xhigh everywhere**, and since project settings override user-global settings, the template's `high` was silently downgrading effort inside every template repo against that intent. The planned Q3 effort sweep never ran, so the docs-default argument was never empirically backed for this workload; explicit operator preference wins (D50). Fleet picks it up at next upgrade; per-repo immediate override: `settings.local.json → {"effortLevel": "xhigh"}`.
+
+---
+
 ## [v0.2.8] — 2026-07-28
 
 **INCIDENT FIX — upgrades destroyed custom `.claude/` content (v0.2.0–v0.2.7).** The v0.2.0 upgrader replaced the whole `.claude/` tree, preserving only 4 hardcoded paths. Everything else a consumer kept in `.claude/` — custom rules, `scripts/`, `.macf/` frameworks, custom hooks, and hand-written `.claude/CLAUDE.md` project sections — was deleted on upgrade (recoverable from `.claude.pre-upgrade-*/`, but the live agent lost its project rules; this bit hard across a 49-repo fleet migration). The v0.2 pre-release review had recommended fence-or-diff for CLAUDE.md; the shipped implementation regenerated wholesale.
