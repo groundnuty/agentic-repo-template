@@ -189,6 +189,12 @@ cleanup_template_metadata() {
   if [ -f upgrade.sh ] && head -3 upgrade.sh | grep -q 'upgrade an already-initialized repo to the latest template version'; then
     rm -f upgrade.sh
   fi
+
+  # fleet-upgrade.sh: operator tooling for mass upgrades across many repos;
+  # not consumer content. Delete if it's ours.
+  if [ -f fleet-upgrade.sh ] && head -4 fleet-upgrade.sh | grep -q 'template-initialized repo under one or more'; then
+    rm -f fleet-upgrade.sh
+  fi
 }
 
 stamp_template_version() {

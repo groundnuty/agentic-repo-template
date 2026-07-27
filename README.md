@@ -287,6 +287,15 @@ Claude reads the stamp, fetches the latest release tag from [the template repo's
 - **No network** — can't reach `api.github.com`; prints your stamp and stops.
 - **No stamp** — this repo predates v0.1.9 or wasn't initialized via `init.sh`; prints instructions for creating a stamp by hand.
 
+### Mass upgrades — `fleet-upgrade.sh` (v0.2.1+)
+
+Many repos at once: discovers every stamped repo under the roots you give, reports, then `--apply` upgrades each with per-repo logs. Auto-skips repos with a live Claude session; never commits or pushes.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/fleet-upgrade.sh -o /tmp/fleet.sh
+bash /tmp/fleet.sh ~/repos && bash /tmp/fleet.sh --apply ~/repos
+```
+
 ### Applying an update — `upgrade.sh` (v0.1.20+)
 
 One command upgrades an already-initialized repo to the latest release. It reads `.claude/.template-version` for the profile and sandbox flags, so **you don't have to remember how the repo was initialized**:

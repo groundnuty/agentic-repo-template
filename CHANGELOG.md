@@ -8,6 +8,18 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.2.1] — 2026-07-27
+
+**`fleet-upgrade.sh` — mass upgrades across many repos.** One command discovers every template-initialized repo under the given roots (by its `.claude/.template-version` stamp), reports version/profile/dirty-count, and — with `--apply` — runs `upgrade.sh` in each, capturing per-repo logs (including the partitioned settings reports) and a final upgraded/current/skipped/failed summary. Safety: report-only by default; repos with a **live Claude Code session** (a `claude` process cwd'd inside) are auto-skipped unless `--force-live`; `--skip <name>` excludes repos; it never commits and never pushes. Operator tooling: `init.sh` removes it from consumer repos like `bootstrap.sh`/`upgrade.sh`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/fleet-upgrade.sh -o /tmp/fleet.sh
+bash /tmp/fleet.sh ~/repos              # report
+bash /tmp/fleet.sh --apply ~/repos      # upgrade everything found
+```
+
+---
+
 ## [v0.2.0] — 2026-07-27
 
 **BREAKING — the context-engineering rethink for Claude 5 generation models.** The Claude 5 guides (July 2026) deprecated the pattern this template was built on: large always-loaded rule sets constrain judgment that current models exercise correctly, and several shipped instructions had become sign-inverted (delegation, verification). v0.2.0 rebuilds around a thin always-on core + conditional (path-scoped) rules + skills + an opt-in MCP layer. Full rationale: decision log D44–D47; adversarial pre-release review: `docs/plans/2026-07-27-v0.2-plan-review.md` in the research repo.
