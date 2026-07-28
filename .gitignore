@@ -53,5 +53,14 @@ k8s-mcp.toml
 .claude/session-reports/*
 !.claude/session-reports/.gitkeep
 
+# Transcript rescues, editor/tool backups, and scratch caches under .claude/.
+# A rescued transcript can be tens of MB — never a git object. (v0.3.1: a
+# session-rescue .jsonl.bak reached 70 MB in a real repo and broke its push.)
+.claude/session-rescue/
+.claude/**/*.bak
+.claude/*.bak
+.claude/.cc-writes/
+.claude/**/__pycache__/
+
 # Template upgrade backups
 .claude.pre-upgrade-*/

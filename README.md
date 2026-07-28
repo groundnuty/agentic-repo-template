@@ -295,6 +295,7 @@ Excluded commands run **entirely outside** the sandbox, and matching is broad (a
 |---|---|
 | `ssh:*`, `scp:*`, `rsync:*` | Remote transport; needs agent sockets + arbitrary hosts |
 | `devbox:*` | Nix-backed store writes outside allowed paths |
+| `git commit:*`, `git tag:*` | **Signed** commits/tags: git spawns gpg, which needs the `~/.gnupg` agent socket `sandbox.credentials` guards. Scoped to these two verbs — the blanket `git:*` hole stays closed (v0.3.1) |
 | `gpg:*`, `gpg-agent:*` | Signing needs the `~/.gnupg` agent socket that `denyRead` guards |
 | `helm/kubectl/kustomize/terraform/docker/podman:*` (code profile) | Go-binary TLS fails under Seatbelt; docker daemon socket |
 

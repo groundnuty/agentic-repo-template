@@ -6,6 +6,15 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.3.1] — 2026-07-28
+
+Two fixes found in production use of v0.3.0.
+
+- **`.gitignore` now keeps transcript and cache artifacts out of git.** A blanket `git add .claude` (during a fleet upgrade) swept in session transcripts, **rescued transcript backups — one was 70 MB and broke that repo's push**, tool `.bak` files, `__pycache__`, and `.cc-writes/`. Ignored from now on: `.claude/session-rescue/`, `.claude/**/*.bak`, `.claude/.cc-writes/`, `.claude/**/__pycache__/` (session-reports were already covered). Existing repos: the rules arrive with this upgrade, but files already tracked stay tracked — `git rm -r --cached .claude/session-rescue .claude/session-reports` (etc.) once, then commit.
+- **Signed commits and tags work under the sandbox again.** v0.2.8 closed the `git:*` sandbox hole; nobody re-tested `git commit -S` / `git tag -s`, and `gpg` invoked *by git* could no longer reach the `~/.gnupg` agent socket that `sandbox.credentials` guards — so signing failed and the fix was to bypass the sandbox entirely (more turns, less safety). Narrow `git commit:*` and `git tag:*` exclusions restore signing while the blanket `git:*` hole stays closed. Tests assert both.
+
+---
+
 ## [v0.3.0] — 2026-07-28
 
 **BREAKING — the two-layer split: scaffold + capability plugins.** Until now everything the template gave you was a file copy under `.claude/`. That is the wrong home for a versioned capability: skills and agents could not be updated without a full template upgrade, could not be versioned independently, and could not carry an LSP config at all. v0.3.0 splits the template in two:
