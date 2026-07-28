@@ -2,4 +2,4 @@
 
 # Proofreading protocol
 
-Manuscript edits follow propose → approve → apply: never rewrite prose in place without showing the proposed change first. The protocol lives in the `proofread` skill.
+Manuscript edits follow propose → approve → apply: never rewrite prose in place without showing the proposed change first. The protocol lives in the `agentic-paper:proofread` skill.

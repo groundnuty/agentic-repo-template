@@ -1,10 +1,87 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "verbose": true,
   "effortLevel": "xhigh",
   "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": [
+    "fetch",
+    "dblp",
+    "arxiv",
+    "openalex",
+    "papers",
+    "zotero",
+    "arxivlatex",
+    "kubernetes",
+    "db",
+    "prometheus"
+  ],
+  "enabledPlugins": {
+    "claude-code-setup@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "session-report@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
+  },
   "env": {
     "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1"
+  },
+  "extraKnownMarketplaces": {
+    "agentic-plugins": {
+      "source": {
+        "repo": "groundnuty/agentic-plugins",
+        "source": "github"
+      }
+    }
+  },
+  "hooks": {
+    "ConfigChange": [
+      {
+        "hooks": [
+          {
+            "command": "printf '%s\\t%s\\t%s\\n' \"$(date -u +%FT%TZ)\" \"$(git config user.email 2>/dev/null || echo -)\" \"${CLAUDE_HOOK_FILE:-?}\" >> \"$CLAUDE_PROJECT_DIR/.claude/audit.log\"",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); [ -n \"$CLAUDE_TRANSCRIPT_PATH\" ] && cp \"$CLAUDE_TRANSCRIPT_PATH\" \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-transcript.jsonl\" 2>/dev/null; { echo \"# Pre-compact $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-gitstate.md\"; echo \"[PreCompact] Context compaction imminent. Transcript archived at .claude/session-reports/${TS}-precompact-transcript.jsonl - run /session-report for a narrative summary before history is compressed.\" >&2'",
+            "timeout": 30000,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); { echo \"# Session end $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-session-end.md\"'",
+            "timeout": 10000,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "echo \"Branch: $(git branch --show-current 2>/dev/null || echo detached). Recent: $(git log --oneline -3 2>/dev/null || echo no-commits)\"",
+            "timeout": 5000,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "marketplaces": {
+    "claude-plugins-official": {
+      "repo": "anthropics/claude-plugins-official",
+      "source": "github"
+    }
   },
   "permissions": {
     "allow": [
@@ -95,9 +172,54 @@
     ]
   },
   "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": true,
+    "autoAllowBashIfSandboxed": true,
+    "credentials": {
+      "files": [
+        {
+          "mode": "deny",
+          "path": "~/.ssh"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.aws"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.gnupg"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.kube"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.config/gcloud"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.config/gh"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.netrc"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.npmrc"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.pypirc"
+        },
+        {
+          "mode": "deny",
+          "path": "~/.docker/config.json"
+        }
+      ]
+    },
+    "enableWeakerNestedSandbox": true,
+    "enabled": true,
     "excludedCommands": [
       "ssh:*",
       "scp:*",
@@ -106,12 +228,6 @@
       "gpg:*",
       "gpg-agent:*"
     ],
-    "network": {
-      "allowedDomains": [
-        "*"
-      ],
-      "deniedDomains": []
-    },
     "filesystem": {
       "allowWrite": [
         "~/.claude/projects",
@@ -122,6 +238,13 @@
         "~/.cache/uv",
         "~/.local/share/uv"
       ],
+      "denyRead": [
+        "~/.aws",
+        "~/.kube",
+        "~/.config/gcloud",
+        "~/.ssh/id_*",
+        "~/.ssh/*.pem"
+      ],
       "denyWrite": [
         "/etc",
         "/usr",
@@ -131,129 +254,14 @@
         "~/.aws",
         "~/.bashrc",
         "~/.zshrc"
-      ],
-      "denyRead": [
-        "~/.aws",
-        "~/.kube",
-        "~/.config/gcloud",
-        "~/.ssh/id_*",
-        "~/.ssh/*.pem"
       ]
     },
-    "enableWeakerNestedSandbox": true,
-    "credentials": {
-      "files": [
-        {
-          "path": "~/.ssh",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.aws",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.gnupg",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.kube",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.config/gcloud",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.config/gh",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.netrc",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.npmrc",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.pypirc",
-          "mode": "deny"
-        },
-        {
-          "path": "~/.docker/config.json",
-          "mode": "deny"
-        }
-      ]
+    "network": {
+      "allowedDomains": [
+        "*"
+      ],
+      "deniedDomains": []
     }
   },
-  "marketplaces": {
-    "claude-plugins-official": {
-      "source": "github",
-      "repo": "anthropics/claude-plugins-official"
-    }
-  },
-  "enabledPlugins": {
-    "superpowers@claude-plugins-official": true,
-    "commit-commands@claude-plugins-official": true,
-    "session-report@claude-plugins-official": true,
-    "hookify@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo \"Branch: $(git branch --show-current 2>/dev/null || echo detached). Recent: $(git log --oneline -3 2>/dev/null || echo no-commits)\"",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "ConfigChange": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "printf '%s\\t%s\\t%s\\n' \"$(date -u +%FT%TZ)\" \"$(git config user.email 2>/dev/null || echo -)\" \"${CLAUDE_HOOK_FILE:-?}\" >> \"$CLAUDE_PROJECT_DIR/.claude/audit.log\""
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); [ -n \"$CLAUDE_TRANSCRIPT_PATH\" ] && cp \"$CLAUDE_TRANSCRIPT_PATH\" \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-transcript.jsonl\" 2>/dev/null; { echo \"# Pre-compact $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-gitstate.md\"; echo \"[PreCompact] Context compaction imminent. Transcript archived at .claude/session-reports/${TS}-precompact-transcript.jsonl - run /session-report for a narrative summary before history is compressed.\" >&2'",
-            "timeout": 30000
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); { echo \"# Session end $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-session-end.md\"'",
-            "timeout": 10000
-          }
-        ]
-      }
-    ]
-  },
-  "enabledMcpjsonServers": [
-    "fetch",
-    "dblp",
-    "arxiv",
-    "openalex",
-    "papers",
-    "zotero",
-    "arxivlatex",
-    "kubernetes",
-    "db",
-    "prometheus"
-  ]
+  "verbose": true
 }

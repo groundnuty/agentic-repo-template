@@ -14,4 +14,4 @@ Avoid:
 - **Em-dash overuse** — one pair per paragraph, maximum.
 - **Transition tokens** — "Moreover", "Furthermore", "Additionally", "Indeed".
 
-For deep de-AI-ification of a full draft, run `/humanizer` (paper profiles).
+For deep de-AI-ification of a full draft, run `/agentic-paper:humanizer` (paper profiles — ships in the `agentic-paper` plugin).

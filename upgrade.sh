@@ -20,6 +20,11 @@
 #     destroyed custom files; recover them from .claude.pre-upgrade-*/.)
 # The stamp is bumped to the new version.
 #
+# v0.3+ also installs and verifies the profile's CAPABILITY PLUGINS at project
+# scope, and — only once that verify is green — deletes the file copies the
+# plugin now supersedes (manifest: plugin-superseded-files.txt). The plugin step
+# can never abort the scaffold upgrade; it reports and exits 4 at the very end.
+#
 # The settings report distinguishes entries the NEW TEMPLATE REMOVED (do not
 # restore them) from YOUR CUSTOMIZATIONS (move to settings.local.json).
 #
@@ -27,6 +32,13 @@
 #   --ref <tag>   Upgrade to a specific version instead of latest (default: main).
 #   --dry-run     Show what would change without modifying anything.
 #   -h, --help    Show this help.
+#
+# Environment:
+#   ARP_SKIP_PLUGIN_INSTALL=1  Do not run `claude plugin ...`; print the exact
+#                              commands and a warning instead (tests, offline).
+#
+# Exit codes: 0 ok · 1 no stamp / unusable stamp · 2 usage · 3 source unreachable
+#             4 the SCAFFOLD upgrade succeeded but the PLUGIN step did not.
 
 set -euo pipefail
 
@@ -39,6 +51,17 @@ DRY_RUN=0
 # Root-level template-owned files (regenerated on upgrade). Live user files
 # (.mcp.json without .example) are never listed here and never touched.
 ROOT_FILES=".mcp.json.example k8s-mcp.toml.example"
+
+# --- capability plugins (v0.3) ------------------------------------------------
+# Which plugins a profile declares is DATA, read from the settings the fresh
+# template generates — never a hardcoded profile list here. Only ids from OUR
+# marketplace are ours to install; @claude-plugins-official entries are Claude
+# Code's own. ARP_MARKETPLACE_SOURCE lets tests point at a local marketplace.
+MARKETPLACE_NAME="${ARP_MARKETPLACE_NAME:-agentic-plugins}"
+MARKETPLACE_SOURCE="${ARP_MARKETPLACE_SOURCE:-groundnuty/agentic-plugins}"
+PLUGIN_RC=0          # 0 = ok/not-applicable, 1 = the step failed (never aborts)
+PLUGIN_DIAG=""       # human-readable failure text, printed AFTER the report
+BACKUP=""            # set once the pre-upgrade backup exists
 
 usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; $d'; }
 
@@ -98,8 +121,271 @@ NEW_VERSION="$(grep 'TEMPLATE_VERSION=' "$SRC/.claude/init.sh" | head -1 | sed '
 echo "Current: ${OLD_VERSION:-unknown} (profile: $PROFILE${CLOUD_COMPAT:+, cloud_compat=$CLOUD_COMPAT}${STRICT_SANDBOX:+, strict_sandbox=$STRICT_SANDBOX})"
 echo "Latest:  ${NEW_VERSION:-unknown}"
 
+# --- capability plugin step (v0.3) --------------------------------------------
+# Defined HERE, above the version compare, so the "already up to date" fast path
+# below can call it without building $WORK.
+#
+# The B1 predicate, inlined: upgrade.sh is a single `curl | bash` file and cannot
+# source anything. `claude plugin list --json` is MACHINE-GLOBAL — it returns
+# every plugin every repo on this box ever installed, plus user-scope ones — so
+# filtering realpath(projectPath)==realpath($PWD) AND .enabled is the only way to
+# answer "is it installed FOR THIS REPO". macOS records the PHYSICAL path
+# (/private/tmp/x) while $PWD is logical (/tmp/x): both sides are normalized.
+plugin_norm_path() {
+  local p="${1:-}"
+  [ -n "$p" ] || return 0
+  if [ -d "$p" ]; then ( cd "$p" 2>/dev/null && pwd -P ) && return 0; fi
+  printf '%s' "$p"
+}
+
+# echoes the sorted ids enabled at PROJECT scope for $PWD; rc=2 if unusable
+plugins_enabled_here() {
+  local raw here lower_here n pp
+  command -v claude >/dev/null 2>&1 || return 2
+  command -v jq >/dev/null 2>&1 || return 2
+  raw="$(claude plugin list --json 2>/dev/null)" || return 2
+  printf '%s' "$raw" | jq -e 'type == "array"' >/dev/null 2>&1 || return 2
+  here="$(pwd -P)"; lower_here="$(printf '%s' "$here" | tr '[:upper:]' '[:lower:]')"
+  local matching=()
+  while IFS= read -r pp; do
+    [ -n "$pp" ] || continue
+    n="$(plugin_norm_path "$pp")"
+    [ "$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')" = "$lower_here" ] && matching+=("$pp")
+  done < <(printf '%s' "$raw" | jq -r '[.[] | .projectPath // empty] | unique | .[]')
+  [ "${#matching[@]}" -gt 0 ] || return 0
+  printf '%s\n' "${matching[@]}" | jq -R . | jq -sr --argjson all "$raw" '
+    . as $paths
+    | [ $all[] | select(.projectPath != null)
+        | select(.projectPath as $p | $paths | index($p))
+        | select(.enabled == true) | .id ] | unique | .[]'
+}
+
+# The declared set is DATA, read from settings — never a hardcoded profile list.
+plugins_declared_in() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  jq -r --arg mkt "@$MARKETPLACE_NAME" \
+    '(.enabledPlugins // {}) | keys[] | select(endswith($mkt))' "$file" 2>/dev/null || true
+}
+
+plugin_commands_for() {
+  local declared="$1" prefix="${2:-    }"
+  printf '%s%s\n' "$prefix" "claude plugin marketplace add ${MARKETPLACE_SOURCE} --scope project"
+  printf '%s\n' "$declared" | sed "/^\$/d; s|^|${prefix}claude plugin install |; s|\$| --scope project|"
+}
+
+# Apply one removal manifest. Lines ending in "/" are directories (rm -rf).
+# $2 is a directory to stash removals into first, or "" when the caller already
+# holds a full pre-upgrade backup of .claude/.
+apply_removal_manifest() {
+  local manifest="$1" stash="${2:-}" rf target removed=""
+  [ -f "$manifest" ] || return 0
+  # `|| [ -n "$rf" ]` so a manifest without a trailing newline keeps its last entry.
+  while IFS= read -r rf || [ -n "$rf" ]; do
+    case "$rf" in ""|\#*) continue ;; esac
+    rf="${rf%/}"
+    target=".claude/$rf"
+    [ -e "$target" ] || continue
+    if [ -n "$stash" ]; then
+      mkdir -p "$stash/$(dirname "$rf")" 2>/dev/null || true
+      cp -R "$target" "$stash/$rf" 2>/dev/null || true
+    fi
+    rm -rf "$target" 2>/dev/null || true
+    removed="${removed}${rf}"$'\n'
+  done < "$manifest"
+  printf '%s' "$removed"
+}
+
+# Drop plugin-owned entries from the consumer's skills.manifest.json (M8): left
+# behind, `refresh-skills.sh` would re-clone humanizer into .claude/skills/ and
+# the stale copy would silently beat the plugin again. User-added entries are
+# preserved; the file is deleted only when nothing is left.
+prune_plugin_skills_manifest() {
+  local manifest="$1" dest=".claude/skills.manifest.json" names drop tmp
+  [ -f "$dest" ] && [ -f "$manifest" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  # Plugin-owned skill names are exactly the manifest's "skills/<name>/" lines.
+  names="$(sed 's/#.*//' "$manifest" | sed -n 's|^skills/\([^/]*\)/[[:space:]]*$|\1|p')"
+  [ -n "$names" ] || return 0
+  drop="$(printf '%s\n' "$names" | jq -Rs 'split("\n") | map(select(length > 0))')"
+  tmp="$(mktemp)"
+  if jq --argjson drop "$drop" \
+       '{ skills: ((.skills // []) | map(select(.name as $n | ($drop | index($n)) | not))) }' \
+       "$dest" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+    if [ "$(jq -r '.skills | length' "$tmp")" = "0" ]; then
+      rm -f "$dest"
+      echo "  skills.manifest.json removed (every entry is now plugin-owned)"
+    elif ! diff -q "$tmp" "$dest" >/dev/null 2>&1; then
+      cp "$tmp" "$dest"
+      echo "  skills.manifest.json pruned of plugin-owned entries"
+    fi
+  fi
+  rm -f "$tmp" 2>/dev/null || true
+}
+
+# Delete the file copies the plugin supersedes. Called ONLY from the verified
+# branch: a repo whose install failed keeps its copies and keeps working.
+dedupe_plugin_superseded() {
+  local manifest="$SRC/.claude/plugin-superseded-files.txt" stash="" removed d n
+  [ -f "$manifest" ] || return 0
+  # On the main path the pre-upgrade backup already holds every one of these
+  # paths. On the fast path there is no backup for this run, so stash first —
+  # a consumer may have HAND-EDITED a shipped skill (the D49 lesson).
+  if [ -z "$BACKUP" ]; then
+    stash=".claude.pre-upgrade-${OLD_VERSION:-unknown}-plugin-dedupe"
+    if [ -e "$stash" ]; then
+      n=1; while [ -e "${stash}.${n}" ]; do n=$((n+1)); done; stash="${stash}.${n}"
+    fi
+  fi
+  removed="$(apply_removal_manifest "$manifest" "$stash")"
+  if [ -n "$removed" ]; then
+    echo "  superseded file copies removed (the plugin ships these now):"
+    printf '%s\n' "$removed" | sed '/^$/d; s|^|    - .claude/|'
+    if [ -n "$stash" ]; then
+      echo "    copies kept in $stash/"
+    else
+      echo "    copies kept in $BACKUP/"
+    fi
+    # Directories emptied by the removals (e.g. agents/ on a paper repo) go too.
+    for d in .claude/agents .claude/skills .claude/templates .claude/rules; do
+      [ -d "$d" ] && rmdir "$d" 2>/dev/null
+    done
+  elif [ -n "$stash" ] && [ -d "$stash" ]; then
+    rmdir "$stash" 2>/dev/null || true
+  fi
+  prune_plugin_skills_manifest "$manifest"
+  return 0
+}
+
+# Install + project-scoped verify the profile's declared capability plugins.
+#
+# WHERE THIS SITS AND WHY (B2', re-derived against the v0.2.8 OVERLAY model):
+#   * The step must run AFTER the overlay: `claude plugin install --scope project`
+#     writes .claude/settings.json and the overlay would clobber those writes; it
+#     also needs the NEW settings.json (with extraKnownMarketplaces) on disk so
+#     the CLI's writes land on the new shape.
+#   * It therefore runs after the overlay, under a function-scoped `set +e`, and
+#     its failure is REPORTED, not thrown. The scaffold is left fully-new either
+#     way; the exit code and the diagnostic carry the bad news.
+#   * FAILING HERE IS THE U6 SILENT-ABSENCE STATE (scaffold says v0.3.0, plugin
+#     absent, nothing errors at session start). It MUST be loud.
+#
+# CONTRACT: never aborts. `set +e` is scoped here; failure sets PLUGIN_RC=1.
+ensure_plugins() {
+  local declared d out rc missing="" enabled_here=""
+  if ! command -v jq >/dev/null 2>&1; then
+    echo
+    echo "warning: jq is not on PATH, so the capability-plugin declaration could not be read."
+    echo "         If this repo's profile declares a plugin, it was NOT installed or verified."
+    return 0
+  fi
+  declared="$(plugins_declared_in .claude/settings.json | sed '/^$/d')"
+  [ -n "$declared" ] || return 0
+
+  set +e   # scoped: nothing below may kill the script
+  echo
+  echo "Capability plugins for profile '$PROFILE': $(printf '%s' "$declared" | tr '\n' ' ')"
+
+  if [ "${ARP_SKIP_PLUGIN_INSTALL:-}" = "1" ]; then
+    echo "  ARP_SKIP_PLUGIN_INSTALL=1 — SKIPPED. The committed declaration is a silent"
+    echo "  no-op on its own; run these IN THIS DIRECTORY to actually get the plugin:"
+    plugin_commands_for "$declared" "    "
+    set -e; return 0
+  fi
+
+  # 1. marketplace add — ALWAYS --scope project (B3). User scope would mutate
+  #    ~/.claude/settings.json, which our own settings.json deny-lists.
+  out="$(claude plugin marketplace add "$MARKETPLACE_SOURCE" --scope project 2>&1)"; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    PLUGIN_RC=1
+    PLUGIN_DIAG="$(printf '%s\n' \
+      "  marketplace registration FAILED (exit $rc):" \
+      "$(printf '%s\n' "$out" | sed 's/^/    /')" \
+      "  Fix — run IN THIS DIRECTORY:" \
+      "$(plugin_commands_for "$declared" "    ")")"
+    set -e; return 0
+  fi
+  printf '%s\n' "$out" | sed 's/^/  /'
+
+  # 2. install each declared plugin — ALWAYS --scope project
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    out="$(claude plugin install "$d" --scope project 2>&1)"; rc=$?
+    printf '%s\n' "$out" | sed 's/^/  /'
+  done <<EOF
+$declared
+EOF
+
+  # 3. PROJECT-SCOPED verify (B1) — the authority, not the install exit codes.
+  #    --allow-extra semantics: the user's own project-scope plugins are fine.
+  enabled_here="$(plugins_enabled_here)"; rc=$?
+  if [ "$rc" -eq 2 ]; then
+    PLUGIN_RC=1
+    PLUGIN_DIAG="  plugin verify COULD NOT RUN (no 'claude' or 'jq' on PATH, or the listing failed).
+  Treat the plugins as NOT installed. Run IN THIS DIRECTORY:
+$(plugin_commands_for "$declared" "    ")"
+    set -e; return 0
+  fi
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    printf '%s\n' "$enabled_here" | grep -qxF "$d" || missing="${missing}${d}"$'\n'
+  done <<EOF
+$declared
+EOF
+
+  if [ -n "$missing" ]; then
+    PLUGIN_RC=1
+    PLUGIN_DIAG="  NOT installed for THIS repo ($(pwd -P)):
+$(printf '%s' "$missing" | sed '/^$/d; s|^|    - |')
+  The scaffold upgraded fine and NOTHING was lost — but the skills and agents
+  these plugins carry are ABSENT, and Claude Code will not tell you so (it
+  reports declared-but-absent plugins as installed). Run IN THIS DIRECTORY:
+$(plugin_commands_for "$missing" "    ")
+  Then re-run: bash upgrade.sh   (it re-verifies even when already up to date)"
+  else
+    echo "  verified at project scope: $(printf '%s' "$enabled_here" | tr '\n' ' ')"
+    # ONLY NOW is deduping safe: the capability is provably present.
+    dedupe_plugin_superseded
+    # 4. canonicalize — the CLI rewrites settings.json in an unstable key order
+    #    (measured: 3 different orders, 162 churn lines for one semantic
+    #    addition). jq -S is idempotent; init.sh authors in the same order.
+    if command -v jq >/dev/null 2>&1 && [ -f .claude/settings.json ]; then
+      tmp="$(mktemp)" && jq -S . .claude/settings.json > "$tmp" 2>/dev/null \
+        && [ -s "$tmp" ] && mv "$tmp" .claude/settings.json
+      rm -f "$tmp" 2>/dev/null || true
+    fi
+  fi
+  set -e
+  return 0
+}
+
+# WAS: `echo "Already up to date. Nothing to do."; exit 0`. That early exit is a
+# TRAP once a plugin step exists: an upgrade whose overlay succeeded but whose
+# plugin install failed bumps the stamp anyway (the stamp is a template-owned
+# file the overlay copies), so the follow-up run would print "Already up to
+# date", exit 0, and bury the missing plugins forever. Verify, then exit.
 if [ -n "$OLD_VERSION" ] && [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
-  echo "Already up to date. Nothing to do."
+  echo "Already up to date (scaffold)."
+  if [ "$DRY_RUN" -eq 1 ]; then
+    _dp="$(plugins_declared_in .claude/settings.json | sed '/^$/d')"
+    if [ -n "$_dp" ]; then
+      echo "[dry-run] would verify capability plugins at project scope by running:"
+      plugin_commands_for "$_dp" "[dry-run]   "
+      echo "[dry-run]   + a project-scoped verify (realpath(projectPath)==\$PWD && .enabled)"
+    else
+      echo "[dry-run] profile '$PROFILE' declares no capability plugins."
+    fi
+    exit 0
+  fi
+  ensure_plugins
+  if [ "$PLUGIN_RC" -ne 0 ]; then
+    echo
+    echo "PLUGIN STEP FAILED — the scaffold is current, the plugins are NOT."
+    printf '%s\n' "$PLUGIN_DIAG"
+    exit 4
+  fi
+  echo "Nothing to do."
   exit 0
 fi
 
@@ -123,7 +409,18 @@ cp -R "$SRC/.claude" "$WORK/"
 FLAGS=()
 [ "$CLOUD_COMPAT" = "true" ] && FLAGS+=(--cloud-compat)
 [ "$STRICT_SANDBOX" = "true" ] && FLAGS+=(--strict-sandbox)
-(cd "$WORK" && bash ./.claude/init.sh "$PROFILE" ${FLAGS[@]+"${FLAGS[@]}"} >/dev/null)
+# ARP_SKIP_PLUGIN_INSTALL=1 is MANDATORY here: this init runs in a throwaway
+# temp dir purely to generate the template-owned tree. Letting it run
+# `claude plugin install --scope project` would install the plugin FOR THE TEMP
+# DIRECTORY — machine state pointing at a path that is deleted seconds later,
+# and no install for the repo being upgraded. The real install happens below,
+# in the repo, via ensure_plugins.
+if ! (cd "$WORK" && ARP_SKIP_PLUGIN_INSTALL=1 bash ./.claude/init.sh "$PROFILE" ${FLAGS[@]+"${FLAGS[@]}"} > "$WORK/init.log" 2>&1); then
+  echo "upgrade: the new template's init.sh failed while generating the fresh tree." >&2
+  echo "         NOTHING was changed in this repo. Output:" >&2
+  sed 's/^/    /' "$WORK/init.log" >&2
+  exit 3
+fi
 
 # --- Settings report ---------------------------------------------------------
 # Diff the existing settings.json against the freshly generated one, then
@@ -200,6 +497,19 @@ if [ "$DRY_RUN" -eq 1 ]; then
   echo "[dry-run] would back up .claude/ -> .claude.pre-upgrade-${OLD_VERSION:-unknown}/"
   echo "[dry-run] would overlay template-owned files in place (CLAUDE.md + rules/project-conventions.md never overwritten;\n[dry-run] custom files untouched); apply removed-files.txt deletions; regenerate root files: $ROOT_FILES"
   echo "[dry-run] would preserve:   settings.local.json, rules/project-conventions.md, audit.log, session-reports/"
+  _dp="$(plugins_declared_in "$WORK/.claude/settings.json" | sed '/^$/d')"
+  if [ -n "$_dp" ]; then
+    echo "[dry-run] would then run, IN THIS DIRECTORY, after the overlay:"
+    plugin_commands_for "$_dp" "[dry-run]   "
+    echo "[dry-run]   + a project-scoped verify (realpath(projectPath)==\$PWD && .enabled)"
+    echo "[dry-run]   + jq -S canonicalization of .claude/settings.json"
+    if [ -f "$SRC/.claude/plugin-superseded-files.txt" ]; then
+      echo "[dry-run]   + ONLY IF that verify is green, delete the file copies the plugin"
+      echo "[dry-run]     supersedes (see plugin-superseded-files.txt; backup keeps copies):"
+      sed 's/#.*//; /^[[:space:]]*$/d; s|^|[dry-run]       - .claude/|' \
+        "$SRC/.claude/plugin-superseded-files.txt"
+    fi
+  fi
   report_custom_settings
   echo
   echo "[dry-run] no changes made."
@@ -240,13 +550,11 @@ if [ -e ".claude/CLAUDE.md" ] && ! diff -q "$WORK/.claude/CLAUDE.md" ".claude/CL
   cp -p "$WORK/.claude/CLAUDE.md" "$BACKUP/CLAUDE.md.template-new" 2>/dev/null || true
 fi
 
-# Deliberate removals (renames/deletions across template versions).
-if [ -f "$SRC/.claude/removed-files.txt" ]; then
-  while IFS= read -r rf; do
-    case "$rf" in ""|\#*) continue ;; esac
-    rm -f ".claude/$rf" 2>/dev/null || true
-  done < "$SRC/.claude/removed-files.txt"
-fi
+# Deliberate removals (renames/deletions across template versions). The backup
+# taken above already holds copies, so no stash is needed. Plugin-superseded
+# paths are NOT applied here — they are conditional on the verify (see
+# dedupe_plugin_superseded).
+apply_removal_manifest "$SRC/.claude/removed-files.txt" "" >/dev/null
 
 # Root-level template files: regenerate the declared .example files. The user's
 # live .mcp.json / k8s-mcp.toml are never listed and never touched.
@@ -259,6 +567,12 @@ if [ -f .gitignore ] && ! grep -q '^\.claude\.pre-upgrade-' .gitignore; then
   printf '\n# Template upgrade backups\n.claude.pre-upgrade-*/\n' >> .gitignore
 fi
 
+# Runs AFTER the overlay (it needs the regenerated settings.json, and the CLI's
+# writes must not be clobbered) and BEFORE the summary, so its progress lines
+# stay in context. It cannot abort: `set +e` is scoped inside. The summary
+# below therefore ALWAYS prints.
+ensure_plugins
+
 echo
 echo "Upgraded ${OLD_VERSION:-unknown} -> ${NEW_VERSION} (profile: $PROFILE)."
 echo "  Backup:    $BACKUP/ (your previous .claude/ — gitignored; delete once satisfied)"
@@ -267,3 +581,13 @@ echo "             session-reports/, and every custom file you added under .clau
 echo "  Merged:    template-owned files updated in place; fresh template CLAUDE.md (with this"
 echo "             profile's appends) saved to $BACKUP/CLAUDE.md.template-new for manual merge"
 echo "  Review the settings report above (if any) and the backup before committing."
+
+# The scaffold upgrade SUCCEEDED and is fully reported above. Only now do we
+# surface the plugin failure and exit nonzero, so fleet-upgrade.sh's per-repo log
+# holds the complete report AND the row says FAILED.
+if [ "$PLUGIN_RC" -ne 0 ]; then
+  echo
+  echo "PLUGIN STEP FAILED — the scaffold upgrade above is COMPLETE and SAFE; the plugins are not."
+  printf '%s\n' "$PLUGIN_DIAG"
+  exit 4
+fi

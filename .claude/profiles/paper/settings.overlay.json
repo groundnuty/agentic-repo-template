@@ -1,4 +1,7 @@
 {
+  "enabledPlugins": {
+    "agentic-paper@agentic-plugins": true
+  },
   "permissions": {
     "allow": [
       "mcp__papers__*",

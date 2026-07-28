@@ -1,5 +1,9 @@
 # Files (paths relative to .claude/) the template REMOVED on purpose.
 # upgrade.sh deletes these from consumer repos; the pre-upgrade backup keeps copies.
+# A line ending in "/" is a DIRECTORY and is removed recursively.
+# These removals are UNCONDITIONAL. Paths a capability PLUGIN superseded live in
+# plugin-superseded-files.txt instead: those are removed only in the branch where
+# the project-scoped plugin verify went green.
 # v0.2.0 (D44 context-engineering rethink):
 rules/meta-governance.md
 rules/exploration-fast-track.md

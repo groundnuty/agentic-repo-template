@@ -17,6 +17,15 @@
 #
 # It never commits and never pushes — review each repo's diff yourself.
 #
+# CAVEAT — the `dirty` column is a BEFORE picture: it is computed once, before
+# the upgrade runs, so it excludes what the run itself writes. That now includes
+# the v0.3 plugin step's own writes on paper-tier repos — `claude plugin install
+# --scope project` rewrites .claude/settings.json, and each invocation leaves a
+# fresh untracked .claude/session-reports/*-session-end.md. A repo listed as `0`
+# will normally be dirty afterwards; always `git status` per repo before
+# committing. Repos whose scaffold upgraded but whose plugin step failed exit 4
+# and land in the FAILED bucket with a complete per-repo log.
+#
 # Options:
 #   --apply          Perform upgrades (default is report-only).
 #   --ref <tag>      Upgrade to a specific version (default: main = latest).

@@ -1,0 +1,35 @@
+# Paths (relative to .claude/) that a capability PLUGIN now ships and the
+# scaffold therefore no longer file-copies.
+#
+# SEMANTICS DIFFER FROM removed-files.txt — that is why this is a separate
+# manifest. removed-files.txt lists UNCONDITIONAL design removals. Everything
+# here is deleted ONLY in the branch where upgrade.sh's project-scoped plugin
+# verify went GREEN. A repo whose plugin install failed keeps its file copies
+# and keeps working; it just carries duplicates until the install succeeds.
+#
+# Why delete at all: a stale scaffold copy silently WINS over the plugin on a
+# bare-name collision (Phase-0 D5, arm 3), so leaving both is a correctness
+# bug, not merely duplication.
+#
+# Format: one path per line, relative to .claude/. A trailing "/" means the
+# path is a directory and is removed recursively. The pre-upgrade backup keeps
+# copies of everything removed.
+#
+# v0.3.0 — agentic-paper@agentic-plugins (D51, the two-layer split):
+skills/review-paper/
+skills/verify-claims/
+skills/proofread/
+skills/seven-pass-review/
+skills/respond-to-referees/
+skills/audit-reproducibility/
+skills/analyze-paper/
+skills/humanizer/
+skills/tikz/
+skills/validate-bib/
+agents/claim-verifier.md
+agents/domain-referee.md
+agents/editor.md
+agents/methods-referee.md
+agents/proofreader.md
+rules/tikz-snippets/
+templates/response-to-referees.md

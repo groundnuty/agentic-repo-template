@@ -75,5 +75,5 @@ For non-econ fields, add your own types to `.claude/agents/methods-referee.md` b
 ## Cross-references
 
 - `.claude/references/journal-profiles.md` — the live calibration file you create from this template (optional; the review pipeline works without it).
-- `.claude/agents/editor.md` — reads profiles, draws referee dispositions.
-- `.claude/skills/review-paper/SKILL.md` — entry point for `--peer [SHORT]`.
+- the `agentic-paper:editor` agent — reads profiles, draws referee dispositions.
+- `/agentic-paper:review-paper` — entry point for `--peer [SHORT]`.

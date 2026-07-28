@@ -31,7 +31,9 @@ Upgrade the current repo to the latest [agentic-repo-template](https://github.co
 
    When in doubt, show the user the entry and the backup at `.claude.pre-upgrade-<oldversion>/settings.json`, and ask.
 
-4. **Verify + report.** Confirm `.claude/settings.json` still parses (`jq -e . .claude/settings.json`), summarize the version jump and what you relocated, and remind the user the backup directory can be deleted once they're satisfied. Do not commit automatically unless the user asks — let them review the diff first.
+4. **Check the capability-plugin step (paper tiers, v0.3+).** After the scaffold summary the upgrader installs and verifies this repo's declared plugins at **project scope**, then — only if that verify is green — deletes the file copies the plugin now supersedes (the backup keeps them). If it printed `PLUGIN STEP FAILED` and **exited 4**, the scaffold upgrade itself is complete and safe, but the plugin's skills and agents are **absent** and Claude Code will not say so. Run the two commands the diagnostic names, in this directory, then re-run the upgrader — it re-verifies even when the scaffold is already up to date.
+
+5. **Verify + report.** Confirm `.claude/settings.json` still parses (`jq -e . .claude/settings.json`), summarize the version jump and what you relocated, and remind the user the backup directory can be deleted once they're satisfied. Do not commit automatically unless the user asks — let them review the diff first.
 
 ## Notes
 
