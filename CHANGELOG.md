@@ -6,6 +6,102 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.3.0] — 2026-07-28
+
+**BREAKING — the two-layer split: scaffold + capability plugins.** Until now everything the template gave you was a file copy under `.claude/`. That is the wrong home for a versioned capability: skills and agents could not be updated without a full template upgrade, could not be versioned independently, and could not carry an LSP config at all. v0.3.0 splits the template in two:
+
+- **Scaffold** — what a plugin genuinely cannot ship: `settings.json`, rules, `CLAUDE.md`, `.gitignore`, hooks, templates and the `.mcp.json.example` opt-in layer. Still file-copied by `init.sh` / `bootstrap.sh` / `upgrade.sh`, unchanged.
+- **Capability plugins** — versioned, natively updatable payload from a marketplace we own: [`groundnuty/agentic-plugins`](https://github.com/groundnuty/agentic-plugins).
+
+There is exactly one plugin today: **`agentic-paper` v1.0.0**, declared by the `paper` and `paper-latex` profiles. `info`, `research` and `code` are unaffected by this release beyond the docs.
+
+Rationale, the empirical grounding and the rejected alternatives: research-repo decision log **D51** (architecture) and **D52** (marketplace + release ritual).
+
+### What moved into `agentic-paper`
+
+No longer file-copied into `.claude/` on a paper-tier init:
+
+- **10 skills** — `review-paper`, `seven-pass-review`, `verify-claims`, `respond-to-referees`, `audit-reproducibility`, `analyze-paper`, `proofread`, `humanizer`, `tikz`, `validate-bib`.
+- **5 agents** — `claim-verifier`, `domain-referee`, `methods-referee`, `editor`, `proofreader`. A fresh paper init now has **no `.claude/agents/` directory at all**.
+- **`rules/tikz-snippets/`** → the `tikz` skill's `snippets/`.
+- **`templates/response-to-referees.md`** → the `respond-to-referees` skill's own output template.
+- **New: the `texlab` LSP config** — deferred from v0.2.0 because plugins are the only documented LSP delivery path. Maps `.tex` → `latex`, `.bib` → `bibtex`. You install the binary (`brew install texlab` or your platform's equivalent); a missing binary surfaces in `/plugin` → Errors only **after your first `.tex` edit**, not at session start.
+
+**Every one of those names is now namespaced** — `/agentic-paper:review-paper`, `agentic-paper:claim-verifier`, and so on. This is a correctness requirement, not tidiness: on a bare-name collision a leftover scaffold copy **silently wins** over the plugin — no error, no version signal, stale content. Namespaced references make that failure loud.
+
+Deliberately **kept in the scaffold**: all rules (plugins cannot ship them — the four paper auto-trigger rules now point at the namespaced skills); all hooks (`notify.sh`, `log-reminder.py`, `verify-reminder.py` are **opt-in by design**, and a plugin hook is active whenever the plugin is enabled, which would silently make them mandatory); MCP servers (they stay in `.mcp.json.example`, keeping the documented per-server approval path and leaving every existing `mcp__*` permission rule untouched); `templates/journal-profile-template.md` (you edit that file — a version-pinned plugin cache is the wrong home); and the `checkpoint` / `permission-check` skills.
+
+### Delivery: install-and-verify, not declaration
+
+**A committed `enabledPlugins` entry installs nothing.** The marketplace registers, the plugin never arrives, and *nothing errors* — the skills are simply absent and Claude Code does not say so. So `init.sh` and `upgrade.sh` now run a real delivery step, in your repo's directory:
+
+1. `claude plugin marketplace add groundnuty/agentic-plugins --scope project`
+2. `claude plugin install agentic-paper@agentic-plugins --scope project`
+3. A **project-scoped verify** — the plugin must be enabled for *this* directory. `claude plugin list --json` is machine-global (it returns every plugin every repo on the box ever installed, plus user-scope ones), so a naive "the id appears in the list" check goes green in repo #2 because repo #1 installed it. The verify, not the install exit code, is the authority.
+4. `jq -S` canonicalization of `settings.json` — `claude plugin install` rewrites it in an unstable key order (three different orders and 162 churn lines measured for one semantic addition).
+
+`--scope project` on both commands, always: user scope writes `~/.claude/settings.json`, which this template's own deny rules block.
+
+**Failure is loud, and never destructive.** `init.sh` exits **5**, `upgrade.sh` exits **4**. In both cases the scaffold is complete and correct and nothing was lost — only the plugin payload is missing — and the diagnostic names the exact commands to run by hand. `upgrade.sh`'s step runs under a scoped `set +e` and can never abort the scaffold upgrade; the full upgrade report always prints first. `fleet-upgrade.sh` shows such a repo as **FAILED** with the complete report in its per-repo log.
+
+**"Already up to date" no longer short-circuits.** It used to `exit 0` immediately, which would have buried a failed plugin step forever: the stamp is a template-owned file the overlay copies, so it gets bumped even when the plugin step failed. The fast path now runs the add/install/verify (and the dedupe below) before exiting — re-running the upgrader is the documented fix path.
+
+### Dedupe — and only when the verify is green
+
+Once the capability is provably present for this repo, `upgrade.sh` deletes the file copies the plugin supersedes (manifest: `plugin-superseded-files.txt`) — the ten skills, five agents, `rules/tikz-snippets/`, `templates/response-to-referees.md` — and prunes plugin-owned entries out of `skills.manifest.json`. Copies land in the pre-upgrade backup and every removal is listed.
+
+This is deliberately conditional. A repo whose install failed **keeps its file copies and keeps working**; it just carries duplicates until the install succeeds. And the semantics are distinct enough from the existing `removed-files.txt` (unconditional design removals) that they get their own manifest.
+
+### Also changed
+
+- **`extraKnownMarketplaces`** now declares `agentic-plugins` in every profile's base `settings.json`; only the paper tiers enable a plugin from it. Post-init `enabledPlugins` count: `info` 5, `research`/`code` 6, `paper`/`paper-latex` **7**.
+- **`refresh-skills.sh` is now a no-op.** No profile ships a `skills.manifest.json` any more — the only git-upstream skill the template ever vendored was `humanizer`, and it now rides in the plugin, where refreshing is `claude plugin update agentic-paper@agentic-plugins`. The script still ships (it prints "no manifest — nothing to refresh") for anyone who wants to vendor a git-sourced skill of their own. **`git` is no longer required for it.**
+- **`ARP_SKIP_PLUGIN_INSTALL=1`** — new environment escape hatch honoured by `init.sh`, `bootstrap.sh` (via `init.sh`) and `upgrade.sh`. Skips the CLI step, prints the two commands with a warning that the declaration alone is a silent no-op, and — because the verify never went green — **does not dedupe**, so file copies stay in place and the repo keeps working.
+- **Post-init totals** (README matrix refreshed and re-verified against a real init of every profile): paper `2 skills + 10 via plugin`, `0 agents + 5 via plugin` (no `.claude/agents/` directory is created at all), 17 rules, 3 hook scripts, 7 templates; paper-latex the same but 18 rules and 4 hook scripts. The plugin adds ~1,900 always-on tokens once installed. The README's hook-script counts were overstated in earlier releases and are now the real shipped counts (1 / 1 / 3 / 4 / 1) — a docs correction, not a change to what ships.
+
+### Requirements
+
+Claude Code floor is unchanged at **v2.1.187**. New, for the paper tiers only:
+
+- the **`claude` CLI on `$PATH`** at init/upgrade time;
+- **network access at least once**, for the first `claude plugin marketplace add`;
+- `git` (the marketplace add clones the marketplace).
+
+### Offline and air-gapped
+
+The honest story, as measured:
+
+- Run **`claude plugin marketplace add groundnuty/agentic-plugins --scope project` once while online.** From then on `claude plugin install` works **offline**, from the local marketplace clone under `~/.claude/plugins/marketplaces/`. (`claude plugin uninstall` does not garbage-collect that clone — which is exactly what keeps later installs working offline.)
+- **`CLAUDE_CODE_PLUGIN_SEED_DIR` is not a substitute for the install step.** It seeds marketplaces and caches into a *session*; `claude plugin install` does not consult it, and with a seed set but git transport dead the install fails with *"Plugin not found in marketplace"*. Treat it as container-image tooling for pre-baking the marketplace clone.
+
+### Do not rename the marketplace key
+
+The marketplace registers under the `name` field inside its `marketplace.json` — `agentic-plugins` — **not** under the repo slug. The plugin ids the template ships (`agentic-paper@agentic-plugins`), the `extraKnownMarketplaces` key, and the install commands all depend on that exact string. Renaming it, or pointing `extraKnownMarketplaces` at a fork registered under a different marketplace name, silently disarms the declaration and lands you in the silent-absence state above. Forking is fine — keep the `name` field.
+
+### Migration
+
+Nothing touches a consumer repo until you run `upgrade.sh`. Three shapes:
+
+1. **Fresh init (`init.sh` / `bootstrap.sh`), online.** Nothing to do — pick `paper` or `paper-latex` and the plugin is installed and verified for you. On failure you get exit 5, a complete scaffold, and the two commands to run.
+2. **Upgrade an existing paper repo, with network.** `curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o /tmp/u.sh && bash /tmp/u.sh --dry-run`, then without `--dry-run`. The scaffold overlays first, then the plugin installs and verifies, then your now-superseded file copies are removed (backup keeps them) and listed. If it exits **4**, the scaffold is done and safe: run the named commands in the repo and re-run the upgrader — it re-verifies even when the scaffold is already up to date. Expect `settings.json` and `.claude/` churn in `git status`; review before committing.
+3. **Upgrade offline / no `claude` CLI / air-gapped.** `ARP_SKIP_PLUGIN_INSTALL=1 bash /tmp/u.sh`. The scaffold upgrades, the plugin step is skipped with a warning, **nothing is deduped**, and your existing file copies keep the repo working exactly as it does today. When you next have network, run in the repo:
+   ```bash
+   claude plugin marketplace add groundnuty/agentic-plugins --scope project
+   claude plugin install agentic-paper@agentic-plugins --scope project
+   bash /tmp/u.sh          # re-run: it verifies, then dedupes
+   ```
+   Until you do, prefer the bare skill names your repo still has on disk; after you do, use the namespaced ones.
+
+**What the upgrade does not touch** (the v0.2.8 overlay guarantees, unchanged): `.claude/CLAUDE.md`, `rules/project-conventions.md`, `settings.local.json`, `audit.log`, `session-reports/`, your live `.mcp.json`, and every custom file you added under `.claude/`.
+
+### Known limitations
+
+- The plugin's skills and agents live in the plugin cache, not in your repo, so they are **not** in your git history and not diffable per-commit. Pin with `claude plugin install agentic-paper@agentic-plugins` against a tagged marketplace ref if you need reproducibility.
+- `claude plugin uninstall` does not garbage-collect the marketplace clone under `~/.claude/plugins/marketplaces/`.
+- `fleet-upgrade.sh`'s `dirty` column is a **before** picture computed at discovery; the plugin step writes `settings.json`, so an upgraded repo is normally dirty afterwards regardless of what the column said.
+
+---
+
 ---
 
 ## [v0.2.9] — 2026-07-28
