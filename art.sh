@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
 #
-# arp — agentic-repo-template CLI. Install once, use everywhere.
+# art — agentic-repo-template CLI. Install once, use everywhere.
 #
-#   arp init -p research          initialize THIS directory (any local dir; no GitHub needed)
-#   arp init -p paper ~/papers/x  ...or that one
-#   arp upgrade                   upgrade this repo to the latest template
-#   arp fleet ~/repos             report every template repo under a root
-#   arp fleet --apply ~/repos     upgrade them all
-#   arp status                    what this repo is running (version, profile, plugins)
-#   arp overview                  ALL hosts at a glance: repos, versions, drift  <-- the fleet view
-#   arp hosts                     which hosts overview surveys (edit the list)
-#   arp profiles                  the five profiles, one line each
-#   arp update                    refresh the cached template (do this to get new releases)
+# (Installed as `art` — macOS ships /usr/sbin/arp, the ARP protocol tool, so
+#  `arp` would be shadowed on the default PATH.)
+#
+#   art init -p research          initialize THIS directory (any local dir; no GitHub needed)
+#   art init -p paper ~/papers/x  ...or that one
+#   art upgrade                   upgrade this repo to the latest template
+#   art fleet ~/repos             report every template repo under a root
+#   art fleet --apply ~/repos     upgrade them all
+#   art status                    what this repo is running (version, profile, plugins)
+#   art overview                  ALL hosts at a glance: repos, versions, drift  <-- the fleet view
+#   art hosts                     which hosts overview surveys (edit the list)
+#   art profiles                  the five profiles, one line each
+#   art update                    refresh the cached template (do this to get new releases)
 #
 # Install:
 #   curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/arp.sh \
-#     -o ~/.local/bin/arp && chmod +x ~/.local/bin/arp
+#     -o ~/.local/bin/art && chmod +x ~/.local/bin/art
 #   (ensure ~/.local/bin is on PATH)
 #
 # Global options: --ref <tag> (pin a template version) · -h|--help · --version
@@ -30,8 +33,8 @@ CACHE="${ARP_CACHE:-$HOME/.cache/arp}"
 TREE="$CACHE/template"
 REF="main"
 
-die()  { echo "arp: $*" >&2; exit 1; }
-info() { echo "arp: $*"; }
+die()  { echo "art: $*" >&2; exit 1; }
+info() { echo "art: $*"; }
 
 usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; $d'; }
 
@@ -73,7 +76,7 @@ cmd_init() {
       *) if [ -z "$profile" ]; then profile="$1"; else dir="$1"; fi; shift ;;
     esac
   done
-  [ -n "$profile" ] || die "which profile? e.g. arp init -p research   (arp profiles lists them)"
+  [ -n "$profile" ] || die "which profile? e.g. art init -p research   (art profiles lists them)"
   case "$profile" in info|research|paper|paper-latex|code) ;;
     *) die "unknown profile '$profile' — one of: info research paper paper-latex code" ;; esac
   [ -d "$dir" ] || die "no such directory: $dir"
@@ -88,7 +91,7 @@ cmd_upgrade() {
   while [ $# -gt 0 ]; do
     case "$1" in -h|--help) usage; exit 0 ;; -*) PASS_THROUGH+=("$1"); shift ;; *) dir="$1"; shift ;; esac
   done
-  [ -f "$dir/.claude/.template-version" ] || die "$dir is not a template repo (no .claude/.template-version). Use: arp init -p <profile>"
+  [ -f "$dir/.claude/.template-version" ] || die "$dir is not a template repo (no .claude/.template-version). Use: art init -p <profile>"
   ensure_tree
   ( cd "$dir" && ARP_UPGRADE_SOURCE="$TREE" bash "$TREE/upgrade.sh" ${PASS_THROUGH[@]+"${PASS_THROUGH[@]}"} )
 }
@@ -101,7 +104,7 @@ cmd_fleet() {
 cmd_status() {
   local dir="${1:-.}"
   local stamp="$dir/.claude/.template-version"
-  [ -f "$stamp" ] || die "$dir is not a template repo. Use: arp init -p <profile>"
+  [ -f "$stamp" ] || die "$dir is not a template repo. Use: art init -p <profile>"
   local v p
   v="$({ grep '^version=' "$stamp" || true; } | head -1 | cut -d= -f2)"
   p="$({ grep '^profile=' "$stamp" || true; } | head -1 | cut -d= -f2)"
@@ -111,7 +114,7 @@ cmd_status() {
   if [ -z "${ARP_NO_FETCH:-}" ] && ensure_tree 2>/dev/null; then
     local latest; latest="$(tree_version)"
     if [ "$v" = "$latest" ]; then echo "          up to date"
-    else echo "          cached template is $latest — 'arp upgrade' to move (run 'arp update' first for newer)"; fi
+    else echo "          cached template is $latest — 'art upgrade' to move (run 'art update' first for newer)"; fi
   fi
   # Declared capability plugins, and whether they are actually installed HERE.
   if command -v jq >/dev/null && [ -f "$dir/.claude/settings.json" ]; then
@@ -122,7 +125,7 @@ cmd_status() {
       while IFS= read -r d; do
         [ -n "$d" ] || continue
         if printf '%s\n' "$here" | grep -qxF "$d"; then echo "plugin:   $d — installed"
-        else echo "plugin:   $d — NOT INSTALLED (run: arp upgrade, or claude plugin install $d --scope project)"; fi
+        else echo "plugin:   $d — NOT INSTALLED (run: art upgrade, or claude plugin install $d --scope project)"; fi
       done <<EOF
 $declared
 EOF
@@ -169,7 +172,7 @@ cmd_hosts() {
 # Only list hosts that actually hold repos — this is not an infrastructure inventory.
 local     ~/repos
 HC
-    info "created $HOSTS_CONF — add your hosts, then: arp overview"
+    info "created $HOSTS_CONF — add your hosts, then: art overview"
   fi
   echo "# $HOSTS_CONF"
   grep -vE '^\s*(#|$)' "$HOSTS_CONF" | sed 's/^/  /'
@@ -189,9 +192,9 @@ cmd_overview() {
   done < <(grep -vE '^\s*(#|$)' "$HOSTS_CONF")
   wait
 
-  [ -s "$raw" ] || { echo "no template repos found on any configured host (arp hosts)"; return 0; }
+  [ -s "$raw" ] || { echo "no template repos found on any configured host (art hosts)"; return 0; }
 
-  echo "arp overview — template ${latest:-?} is current"
+  echo "art overview — template ${latest:-?} is current"
   echo
   printf '%-12s %6s %8s %8s %7s  %s\n' "HOST" "REPOS" "CURRENT" "BEHIND" "DIRTY" "PROFILES"
   local hosts_seen; hosts_seen="$(cut -f1 "$raw" | sort -u)"
@@ -215,8 +218,8 @@ cmd_overview() {
     echo "behind $latest:"
     awk -F'\t' -v L="$latest" '$3!=L {printf "  %-10s %-8s %s\n", $1, $3, $2}' "$raw" | sort | head -40
     echo
-    echo "  fix:  arp fleet --apply <root>          (locally)"
-    echo "        ssh <host> 'arp fleet --apply <root>'  (elsewhere — or run arp there)"
+    echo "  fix:  art fleet --apply <root>          (locally)"
+    echo "        ssh <host> 'art fleet --apply <root>'  (elsewhere — or run arp there)"
   fi
 }
 
@@ -228,7 +231,7 @@ paper        research + the agentic-paper plugin: review, claim verification, pr
 paper-latex  paper + LaTeX/BibTeX discipline, TikZ skill, texlab LSP.
 code         info + Makefile/devbox conventions, testing discipline.
 
-  arp init -p research          initialize the current directory
+  art init -p research          initialize the current directory
 EOF
 }
 
@@ -254,5 +257,5 @@ case "${1:-}" in
   profiles) shift; cmd_profiles ;;
   update)   shift; cmd_update ;;
   ""|help)  usage ;;
-  *)        die "unknown command '$1' — try: arp help" ;;
+  *)        die "unknown command '$1' — try: art help" ;;
 esac

@@ -6,6 +6,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.3.4] — 2026-07-29
+
+**The CLI installs as `art`.** The first real install exposed a name collision: macOS ships `/usr/sbin/arp` (the ARP protocol tool), which shadows `~/.local/bin/arp` on the default PATH, so `arp overview` ran the network utility and printed `Unknown host`. Same script, same subcommands, shorter name. If you installed v0.3.2/v0.3.3: re-install as `art` and delete the old `~/.local/bin/arp`.
+
+---
+
 ## [v0.3.3] — 2026-07-29
 
 **`arp overview` — every host at a glance.** One command on your main machine surveys all the machines you list and prints repo counts, how many are current vs behind, dirty working trees, and a profile breakdown per host, then names the repos that are behind:
@@ -24,7 +30,7 @@ Hosts are surveyed in parallel over ssh with a self-contained POSIX snippet — 
 **`arp` — a CLI, so initializing a repo is one command you can remember.**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/arp.sh -o ~/.local/bin/arp && chmod +x ~/.local/bin/arp
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/art.sh -o ~/.local/bin/arp && chmod +x ~/.local/bin/arp
 
 arp init -p research        # initialize THIS directory — any local dir, no GitHub, no fork, no remote
 arp init -p paper ~/some/x  # ...or that one
@@ -35,7 +41,7 @@ arp profiles                # the five profiles, one line each
 arp update                  # refresh the cached template to pick up new releases
 ```
 
-It wraps the existing `bootstrap.sh` / `upgrade.sh` / `fleet-upgrade.sh` rather than duplicating them, and keeps one shallow template clone in `~/.cache/arp` (so after the first fetch it works offline, and `arp update` is the deliberate step that moves you to a new release). `ARP_SOURCE=/path/to/checkout` bypasses the cache for template development. Like `bootstrap.sh` and `fleet-upgrade.sh`, `arp.sh` is operator tooling — `init.sh` removes it from consumer repos.
+It wraps the existing `bootstrap.sh` / `upgrade.sh` / `fleet-upgrade.sh` rather than duplicating them, and keeps one shallow template clone in `~/.cache/arp` (so after the first fetch it works offline, and `arp update` is the deliberate step that moves you to a new release). `ARP_SOURCE=/path/to/checkout` bypasses the cache for template development. Like `bootstrap.sh` and `fleet-upgrade.sh`, `art.sh` is operator tooling — `init.sh` removes it from consumer repos.
 
 Nothing about this is new capability: `bootstrap.sh` already initialized any local directory. It was undiscoverable — you had to fetch it and remember the URL each time.
 

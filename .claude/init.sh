@@ -27,7 +27,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.3.3"
+TEMPLATE_VERSION="v0.3.4"
 
 # --- capability plugins (v0.3) ------------------------------------------------
 # A profile "declares" a plugin by carrying <name>@$MARKETPLACE_NAME in the
@@ -440,11 +440,11 @@ cleanup_template_metadata() {
     rm -f upgrade.sh
   fi
 
-  # arp.sh: the CLI itself — installed to ~/.local/bin, never checked into a
+  # art.sh: the CLI itself — installed to ~/.local/bin, never checked into a
   # consuming repo. Delete if it's ours.
-  if [ -f arp.sh ] && head -4 arp.sh | grep -q 'agentic-repo-template CLI'; then
-    rm -f arp.sh
-  fi
+  for f in art.sh arp.sh; do
+    if [ -f "$f" ] && head -4 "$f" | grep -q 'agentic-repo-template CLI'; then rm -f "$f"; fi
+  done
 
   # fleet-upgrade.sh: operator tooling for mass upgrades across many repos;
   # not consumer content. Delete if it's ours.

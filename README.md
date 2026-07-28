@@ -6,30 +6,32 @@ A GitHub template repository with sane Claude Code defaults for autonomous work.
 
 ### The CLI (recommended)
 
+Installed as **`art`** — short, and free of the `/usr/sbin/arp` collision macOS would otherwise give you.
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/arp.sh -o ~/.local/bin/arp && chmod +x ~/.local/bin/arp
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/art.sh -o ~/.local/bin/art && chmod +x ~/.local/bin/art
 ```
 
 Then, in any directory you want to work in — **local-only is fine; no GitHub repo, no fork, no remote**:
 
 ```bash
-arp init -p research     # or: info | paper | paper-latex | code   (arp profiles explains them)
+art init -p research     # or: info | paper | paper-latex | code   (arp profiles explains them)
 ```
 
-That's the whole flow. Later: `arp status` (what this repo runs), `arp upgrade` (move it forward), `arp fleet ~/repos` (see every template repo you have; `--apply` upgrades them), `arp update` (pull a newer template into the cache).
+That's the whole flow. Later: `art status` (what this repo runs), `art upgrade` (move it forward), `art fleet ~/repos` (see every template repo you have; `--apply` upgrades them), `art update` (pull a newer template into the cache).
 
 ### The whole fleet, from one machine
 
 ```bash
-arp hosts        # first run creates ~/.config/arp/hosts.conf — add a line per machine:
+art hosts        # first run creates ~/.config/arp/hosts.conf — add a line per machine:
                  #   local     ~/repos
                  #   magent    ~/repos
-arp overview     # every host: repos, current vs behind, dirty trees, profile mix
+art overview     # every host: repos, current vs behind, dirty trees, profile mix
 ```
 
 Hosts are surveyed in parallel over ssh with a self-contained POSIX snippet — **nothing needs to be installed on the remote side**. An unreachable host contributes zero rows rather than failing the run. The list is curated on purpose: your ssh config is an infrastructure inventory, not a repo inventory.
 
-`arp` caches one shallow template clone in `~/.cache/arp`, so after the first fetch it works offline. It wraps the scripts below rather than replacing them.
+`art` caches one shallow template clone in `~/.cache/arp`, so after the first fetch it works offline. It wraps the scripts below rather than replacing them.
 
 
 1. On GitHub, click **Use this template → Create a new repository**.
