@@ -4,6 +4,23 @@ A GitHub template repository with sane Claude Code defaults for autonomous work.
 
 ## Quick start
 
+### The CLI (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/arp.sh -o ~/.local/bin/arp && chmod +x ~/.local/bin/arp
+```
+
+Then, in any directory you want to work in — **local-only is fine; no GitHub repo, no fork, no remote**:
+
+```bash
+arp init -p research     # or: info | paper | paper-latex | code   (arp profiles explains them)
+```
+
+That's the whole flow. Later: `arp status` (what this repo runs), `arp upgrade` (move it forward), `arp fleet ~/repos` (see every template repo you have; `--apply` upgrades them), `arp update` (pull a newer template into the cache).
+
+`arp` caches one shallow template clone in `~/.cache/arp`, so after the first fetch it works offline. It wraps the scripts below rather than replacing them.
+
+
 1. On GitHub, click **Use this template → Create a new repository**.
 2. Clone your new repo locally.
 3. Pick a profile and run the init script:

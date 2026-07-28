@@ -6,6 +6,28 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.3.2] — 2026-07-29
+
+**`arp` — a CLI, so initializing a repo is one command you can remember.**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/arp.sh -o ~/.local/bin/arp && chmod +x ~/.local/bin/arp
+
+arp init -p research        # initialize THIS directory — any local dir, no GitHub, no fork, no remote
+arp init -p paper ~/some/x  # ...or that one
+arp upgrade                 # upgrade this repo
+arp fleet ~/repos           # report every template repo under a root (--apply to upgrade them)
+arp status                  # version, profile, and whether the declared plugin is actually installed here
+arp profiles                # the five profiles, one line each
+arp update                  # refresh the cached template to pick up new releases
+```
+
+It wraps the existing `bootstrap.sh` / `upgrade.sh` / `fleet-upgrade.sh` rather than duplicating them, and keeps one shallow template clone in `~/.cache/arp` (so after the first fetch it works offline, and `arp update` is the deliberate step that moves you to a new release). `ARP_SOURCE=/path/to/checkout` bypasses the cache for template development. Like `bootstrap.sh` and `fleet-upgrade.sh`, `arp.sh` is operator tooling — `init.sh` removes it from consumer repos.
+
+Nothing about this is new capability: `bootstrap.sh` already initialized any local directory. It was undiscoverable — you had to fetch it and remember the URL each time.
+
+---
+
 ## [v0.3.1] — 2026-07-28
 
 Two fixes found in production use of v0.3.0.
