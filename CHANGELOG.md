@@ -6,6 +6,19 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.3.3] — 2026-07-29
+
+**`arp overview` — every host at a glance.** One command on your main machine surveys all the machines you list and prints repo counts, how many are current vs behind, dirty working trees, and a profile breakdown per host, then names the repos that are behind:
+
+```
+arp hosts        # the surveyed list (created on first run; edit it — one line per host: <ssh-host|local> <roots…>)
+arp overview     # the table
+```
+
+Hosts are surveyed in parallel over ssh with a self-contained POSIX snippet — **the remote side needs nothing installed**, not even `arp`. An unreachable host degrades to zero rows instead of failing the run. Deliberately a curated list, not an ssh-config scan: an infrastructure inventory is not a repo inventory.
+
+---
+
 ## [v0.3.2] — 2026-07-29
 
 **`arp` — a CLI, so initializing a repo is one command you can remember.**

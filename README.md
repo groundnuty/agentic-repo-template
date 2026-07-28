@@ -18,6 +18,17 @@ arp init -p research     # or: info | paper | paper-latex | code   (arp profiles
 
 That's the whole flow. Later: `arp status` (what this repo runs), `arp upgrade` (move it forward), `arp fleet ~/repos` (see every template repo you have; `--apply` upgrades them), `arp update` (pull a newer template into the cache).
 
+### The whole fleet, from one machine
+
+```bash
+arp hosts        # first run creates ~/.config/arp/hosts.conf — add a line per machine:
+                 #   local     ~/repos
+                 #   magent    ~/repos
+arp overview     # every host: repos, current vs behind, dirty trees, profile mix
+```
+
+Hosts are surveyed in parallel over ssh with a self-contained POSIX snippet — **nothing needs to be installed on the remote side**. An unreachable host contributes zero rows rather than failing the run. The list is curated on purpose: your ssh config is an infrastructure inventory, not a repo inventory.
+
 `arp` caches one shallow template clone in `~/.cache/arp`, so after the first fetch it works offline. It wraps the scripts below rather than replacing them.
 
 

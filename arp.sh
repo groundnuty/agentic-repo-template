@@ -8,6 +8,8 @@
 #   arp fleet ~/repos             report every template repo under a root
 #   arp fleet --apply ~/repos     upgrade them all
 #   arp status                    what this repo is running (version, profile, plugins)
+#   arp overview                  ALL hosts at a glance: repos, versions, drift  <-- the fleet view
+#   arp hosts                     which hosts overview surveys (edit the list)
 #   arp profiles                  the five profiles, one line each
 #   arp update                    refresh the cached template (do this to get new releases)
 #
@@ -18,6 +20,7 @@
 #
 # Global options: --ref <tag> (pin a template version) · -h|--help · --version
 # Env: ARP_SOURCE=/path/to/template-checkout  (bypass the cache — for template development)
+#      ARP_HOSTS=~/.config/arp/hosts.conf     (host list for `overview`)
 #      ARP_CACHE=~/.cache/arp                 (where the template clone lives)
 
 set -euo pipefail
@@ -127,6 +130,96 @@ EOF
   fi
 }
 
+HOSTS_CONF="${ARP_HOSTS:-$HOME/.config/arp/hosts.conf}"
+
+# Survey one host. Runs a self-contained snippet over ssh — the remote side does
+# NOT need arp, jq, or anything but POSIX sh + find. Emits TSV:
+#   host <TAB> repo <TAB> version <TAB> profile <TAB> dirty
+survey_snippet() {
+  cat <<'SNIP'
+for root in ROOTS_PLACEHOLDER; do
+  r=$(eval echo "$root"); r=$(cd "$r" 2>/dev/null && pwd -P) || continue
+  find "$r" -maxdepth 5 -name .template-version -path '*/.claude/*' 2>/dev/null | while read -r st; do
+    d=${st%/.claude/.template-version}
+    v=$(grep '^version=' "$st" 2>/dev/null | head -1 | cut -d= -f2)
+    p=$(grep '^profile=' "$st" 2>/dev/null | head -1 | cut -d= -f2)
+    n=$(cd "$d" 2>/dev/null && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    printf '%s\t%s\t%s\t%s\n' "$d" "${v:-?}" "${p:-?}" "${n:-–}"
+  done
+done
+SNIP
+}
+
+survey_host() {
+  local host="$1" roots="$2" snip
+  snip="$(survey_snippet | sed "s|ROOTS_PLACEHOLDER|$roots|")"
+  if [ "$host" = "local" ]; then
+    printf '%s\n' "$snip" | sh 2>/dev/null | sed "s|^|local\t|"
+  else
+    ssh -o BatchMode=yes -o ConnectTimeout=8 "$host" "sh -s" <<< "$snip" 2>/dev/null | sed "s|^|$host\t|"
+  fi
+}
+
+cmd_hosts() {
+  if [ ! -f "$HOSTS_CONF" ]; then
+    mkdir -p "$(dirname "$HOSTS_CONF")"
+    cat > "$HOSTS_CONF" <<'HC'
+# Hosts that `arp overview` surveys. One per line:  <ssh-host-or-"local">  <roots…>
+# Roots are shell-expanded on the remote side (~ works). Lines starting with # are ignored.
+# Only list hosts that actually hold repos — this is not an infrastructure inventory.
+local     ~/repos
+HC
+    info "created $HOSTS_CONF — add your hosts, then: arp overview"
+  fi
+  echo "# $HOSTS_CONF"
+  grep -vE '^\s*(#|$)' "$HOSTS_CONF" | sed 's/^/  /'
+  echo
+  echo "edit that file to add hosts, e.g.:  magent    ~/repos"
+}
+
+cmd_overview() {
+  [ -f "$HOSTS_CONF" ] || cmd_hosts >/dev/null
+  ensure_tree 2>/dev/null || true
+  local latest=""; [ -d "$TREE/.claude" ] && latest="$(tree_version)"
+  local raw; raw="$(mktemp)"; trap 'rm -f "$raw"' RETURN
+  local host roots
+  while read -r host roots; do
+    case "$host" in ''|\#*) continue ;; esac
+    survey_host "$host" "$roots" >> "$raw" &
+  done < <(grep -vE '^\s*(#|$)' "$HOSTS_CONF")
+  wait
+
+  [ -s "$raw" ] || { echo "no template repos found on any configured host (arp hosts)"; return 0; }
+
+  echo "arp overview — template ${latest:-?} is current"
+  echo
+  printf '%-12s %6s %8s %8s %7s  %s\n' "HOST" "REPOS" "CURRENT" "BEHIND" "DIRTY" "PROFILES"
+  local hosts_seen; hosts_seen="$(cut -f1 "$raw" | sort -u)"
+  local h n cur beh dirty profs
+  while IFS= read -r h; do
+    n=$(awk -F'\t' -v h="$h" '$1==h' "$raw" | wc -l | tr -d ' ')
+    cur=$(awk -F'\t' -v h="$h" -v L="$latest" '$1==h && $3==L' "$raw" | wc -l | tr -d ' ')
+    beh=$((n - cur))
+    dirty=$(awk -F'\t' -v h="$h" '$1==h && $5 ~ /^[0-9]+$/ && $5+0 > 0' "$raw" | wc -l | tr -d ' ')
+    profs=$(awk -F'\t' -v h="$h" '$1==h {print $4}' "$raw" | sort | uniq -c | sort -rn | awk '{printf "%s:%s ", $2, $1}')
+    printf '%-12s %6s %8s %8s %7s  %s\n' "$h" "$n" "$cur" "$beh" "$dirty" "$profs"
+  done <<< "$hosts_seen"
+  printf '%-12s %6s %8s %8s %7s\n' "TOTAL" \
+    "$(wc -l < "$raw" | tr -d ' ')" \
+    "$(awk -F'\t' -v L="$latest" '$3==L' "$raw" | wc -l | tr -d ' ')" \
+    "$(awk -F'\t' -v L="$latest" '$3!=L' "$raw" | wc -l | tr -d ' ')" \
+    "$(awk -F'\t' '$5 ~ /^[0-9]+$/ && $5+0 > 0' "$raw" | wc -l | tr -d ' ')"
+
+  if [ -n "$latest" ] && awk -F'\t' -v L="$latest" '$3!=L' "$raw" | grep -q .; then
+    echo
+    echo "behind $latest:"
+    awk -F'\t' -v L="$latest" '$3!=L {printf "  %-10s %-8s %s\n", $1, $3, $2}' "$raw" | sort | head -40
+    echo
+    echo "  fix:  arp fleet --apply <root>          (locally)"
+    echo "        ssh <host> 'arp fleet --apply <root>'  (elsewhere — or run arp there)"
+  fi
+}
+
 cmd_profiles() {
   cat <<'EOF'
 info         minimal base — rules, session logging, checkpoints. Any repo.
@@ -156,6 +249,8 @@ case "${1:-}" in
   upgrade)  shift; cmd_upgrade "$@" ;;
   fleet)    shift; cmd_fleet "$@" ;;
   status)   shift; cmd_status "$@" ;;
+  overview) shift; cmd_overview ;;
+  hosts)    shift; cmd_hosts ;;
   profiles) shift; cmd_profiles ;;
   update)   shift; cmd_update ;;
   ""|help)  usage ;;
