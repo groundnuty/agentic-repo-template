@@ -17,7 +17,7 @@
 #                    bootstrap refuses to touch a directory that's already configured.
 #   --cloud-compat   Pass through to init.sh (deprecated; base is cloud-safe since v0.1.15).
 #   --strict-sandbox Pass through to init.sh (opt-in hard sandbox gate).
-#   --dry-run        Pass through to init.sh.
+#   --dry-run        Preview only. Stages in a scratch dir and writes NOTHING here.
 #   -h, --help       Show this help.
 #
 # Recommended (inspect-first) two-step:
@@ -50,7 +50,9 @@ while [ $# -gt 0 ]; do
     --ref=*) REF="${1#*=}"; shift ;;
     --force) FORCE=1; shift ;;
     -h|--help) usage; exit 0 ;;
-    --cloud-compat|--strict-sandbox|--dry-run|--keep-profiles)
+    --dry-run)
+      DRY_RUN=1; PASSTHROUGH+=("$1"); shift ;;
+    --cloud-compat|--strict-sandbox|--keep-profiles)
       PASSTHROUGH+=("$1"); shift ;;
     -*) echo "bootstrap: unknown option '$1'" >&2; usage >&2; exit 2 ;;
     *)
@@ -93,6 +95,22 @@ fi
 if [ ! -d "$SRC_DIR/.claude" ]; then
   echo "bootstrap: source has no .claude/ directory ($SRC_DIR)." >&2
   exit 3
+fi
+
+# --dry-run must leave the working directory EXACTLY as it found it. Copying
+# .claude/ here and letting init.sh no-op inside it left a full template tree
+# behind — which then made the real run refuse ("already configured"). So a dry
+# run stages in a scratch directory and reports from there.
+if [ "${DRY_RUN:-0}" = "1" ]; then
+  PREVIEW="$(mktemp -d)"
+  trap 'rm -rf "$PREVIEW"' EXIT
+  cp -R "$SRC_DIR/.claude" "$PREVIEW/"
+  ( cd "$PREVIEW" && bash ./.claude/init.sh "$PROFILE" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"} )
+  echo
+  echo "bootstrap: [dry-run] nothing was written to $(pwd)."
+  [ -f AGENTS.md ] && echo "bootstrap: [dry-run] note — you already have an AGENTS.md; the template's"
+  [ -f AGENTS.md ] && echo "           managed section would be added above your content, which is kept."
+  exit 0
 fi
 
 # Copy config into the current directory.

@@ -6,6 +6,12 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.1] — 2026-07-29
+
+Fix: **`bootstrap.sh --dry-run` was not side-effect-free.** It copied the full `.claude/` tree into the target directory before handing off to `init.sh --dry-run`, so a "preview" left 14 entries behind — and the *real* run then refused with "already configured". Found in the first single-repo trial of v0.4.0, on a repo that had never been initialized. A dry run now stages in a scratch directory, writes nothing, and reports whether an existing `AGENTS.md` would be preserved. Regression test asserts the target directory is byte-for-byte unchanged and that a real init still succeeds afterwards.
+
+---
+
 ## [v0.4.0] — 2026-07-29
 
 **BREAKING — one rules corpus, three harnesses.** The always-on rules move out of `.claude/rules/` and into a generated **`AGENTS.md`** at the repo root. Verified live on all three: **Codex** and **OpenCode** read `AGENTS.md` natively; **Claude Code** reads the same bytes through the `@AGENTS.md` import in `CLAUDE.md` (the shim Anthropic's own docs prescribe). Nothing is authored twice and nothing double-loads.
