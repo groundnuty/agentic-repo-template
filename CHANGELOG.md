@@ -6,6 +6,24 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.0] — 2026-07-29
+
+**BREAKING — one rules corpus, three harnesses.** The always-on rules move out of `.claude/rules/` and into a generated **`AGENTS.md`** at the repo root. Verified live on all three: **Codex** and **OpenCode** read `AGENTS.md` natively; **Claude Code** reads the same bytes through the `@AGENTS.md` import in `CLAUDE.md` (the shim Anthropic's own docs prescribe). Nothing is authored twice and nothing double-loads.
+
+What each file holds now:
+
+- **`AGENTS.md`** — the always-on corpus, inside `<!-- BEGIN/END template-managed -->` fences. Anything you write outside the fences is never touched; a hand-written `AGENTS.md` with no fences is never overwritten at all (its generated version lands in the upgrade backup as `AGENTS.md.template-new`).
+- **`CLAUDE.md`** — `@AGENTS.md` plus Claude-only pointers. Codex and OpenCode ignore this file entirely, so Claude-specific guidance costs them nothing.
+- **`.claude/rules/`** — only path-scoped rules (no other harness has glob scoping) and your own `project-conventions.md`.
+
+Also: the `/agentic-paper:tikz` skill's description **and body** now lead with the write path. Codex was observed declining to load it while drafting a figure, reasoning it was "mainly for auditing and repairing an existing TikZ figure" — reading our own framing back to us, in both harnesses. The plugin also gains `.agents/plugins/marketplace.json` (a relative symlink to the `.claude-plugin/` file), the vendor-neutral path Codex checks first.
+
+**Migration:** `upgrade.sh` creates `AGENTS.md`, installs the import shim, and deletes the rule files that moved — and leaves every custom file, your `project-conventions.md`, and anything outside the fences alone. Regression-tested against a customized v0.3.x consumer.
+
+**OpenCode note:** rules and repo-local skills work; **plugin-delivered skills are invisible to OpenCode and fail silently**, so the `agentic-paper` suite is Claude-Code-and-Codex only for now.
+
+---
+
 ## [v0.3.4] — 2026-07-29
 
 **The CLI installs as `art`.** The first real install exposed a name collision: macOS ships `/usr/sbin/arp` (the ARP protocol tool), which shadows `~/.local/bin/arp` on the default PATH, so `arp overview` ran the network utility and printed `Unknown host`. Same script, same subcommands, shorter name. If you installed v0.3.2/v0.3.3: re-install as `art` and delete the old `~/.local/bin/arp`.
