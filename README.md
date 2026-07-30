@@ -20,6 +20,15 @@ art init -p research     # or: info | paper | paper-latex | code   (arp profiles
 
 That's the whole flow. Later: `art status` (what this repo runs), `art upgrade` (move it forward), `art fleet ~/repos` (see every template repo you have; `--apply` upgrades them), `art update` (pull a newer template into the cache).
 
+### One tmux session per project
+
+```bash
+art tmux                 # start (or reattach to) a session named after this directory
+art tmux --with codex    # same, running codex — or opencode
+```
+
+Created on the first call, reattached on every call after, so the same command works whether or not the session is already running. From inside tmux it switches client instead of nesting. `art tmux -n <name>` overrides the derived name.
+
 ### The whole fleet, from one machine
 
 ```bash

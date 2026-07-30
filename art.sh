@@ -11,6 +11,8 @@
 #   art fleet ~/repos             report every template repo under a root
 #   art fleet --apply ~/repos     upgrade them all
 #   art status                    what this repo is running (version, profile, plugins)
+#   art tmux                      run an agent in a tmux session named after this directory —
+#                                 reattaches if it already exists (no more `tmux new -s <dir>`)
 #   art overview                  ALL hosts at a glance: repos, versions, drift  <-- the fleet view
 #   art hosts                     which hosts overview surveys (edit the list)
 #   art profiles                  the five profiles, one line each
@@ -223,6 +225,45 @@ cmd_overview() {
   fi
 }
 
+# One tmux session per project directory. Creates it on first use, reattaches
+# every time after — which is the whole point: the same command works whether or
+# not the session is already running, so it can be muscle memory.
+cmd_tmux() {
+  command -v tmux >/dev/null 2>&1 || die "tmux is not installed (brew install tmux)"
+  local agent="claude" name="" dir
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --with)   agent="${2:?--with needs claude|codex|opencode}"; shift 2 ;;
+      --with=*) agent="${1#*=}"; shift ;;
+      -n|--name)  name="${2:?-n needs a name}"; shift 2 ;;
+      -n=*|--name=*) name="${1#*=}"; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) break ;;                      # everything else goes to the agent
+    esac
+  done
+  command -v "$agent" >/dev/null 2>&1 || die "'$agent' is not on PATH"
+
+  dir="$(pwd -P)"
+  if [ -z "$name" ]; then
+    # tmux treats '.' and ':' specially in session names; keep it recognisable.
+    name="$(basename "$dir" | tr '.:' '--' | tr -cd '[:alnum:]._-')"
+  fi
+  [ -n "$name" ] || name="session"
+
+  if tmux has-session -t "=$name" 2>/dev/null; then
+    info "attaching to '$name'"
+    if [ -n "${TMUX:-}" ]; then tmux switch-client -t "=$name"; else tmux attach-session -t "=$name"; fi
+    return 0
+  fi
+
+  info "starting '$name' ($agent) in $dir"
+  if [ -n "${TMUX:-}" ]; then
+    tmux new-session -d -s "$name" -c "$dir" "$agent" ${1+"$@"} && tmux switch-client -t "=$name"
+  else
+    tmux new-session -s "$name" -c "$dir" "$agent" ${1+"$@"}
+  fi
+}
+
 cmd_profiles() {
   cat <<'EOF'
 info         minimal base — rules, session logging, checkpoints. Any repo.
@@ -252,6 +293,7 @@ case "${1:-}" in
   upgrade)  shift; cmd_upgrade "$@" ;;
   fleet)    shift; cmd_fleet "$@" ;;
   status)   shift; cmd_status "$@" ;;
+  tmux)     shift; cmd_tmux "$@" ;;
   overview) shift; cmd_overview ;;
   hosts)    shift; cmd_hosts ;;
   profiles) shift; cmd_profiles ;;
