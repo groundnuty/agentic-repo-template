@@ -23,6 +23,14 @@ That's the whole flow. Later: `art status` (what this repo runs), `art upgrade` 
 ### One tmux session per project
 
 ```bash
+art install-wrappers     # claudet / codext / opencodet in ~/.local/bin
+claudet                  # = claude, but in a tmux session named after this directory
+```
+
+`art tmux` does the same thing; the wrappers just let you type it the way you already type the tool. They are new commands, not shadows — `claude` keeps meaning exactly what it means today, which matters because scripted `claude -p` runs must not end up inside tmux. The wrappers exec straight through whenever tmux would be wrong (no TTY, `-p`, subcommands like `codex exec`, already inside tmux, or `ART_NO_TMUX=1`).
+
+
+```bash
 art tmux                 # start (or reattach to) a session named after this directory
 art tmux --with codex    # same, running codex — or opencode
 ```

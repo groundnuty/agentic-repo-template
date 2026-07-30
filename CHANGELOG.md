@@ -6,6 +6,21 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.3] — 2026-07-31
+
+**`art install-wrappers` — `claudet`, `codext`, `opencodet`.** Type the tool's name with a `t` and you get it inside a tmux session named after the directory: created on the first call, reattached every time after.
+
+```bash
+art install-wrappers              # -> ~/.local/bin/{claudet,codext,opencodet}
+art install-wrappers --uninstall
+```
+
+Deliberately **new names rather than shadowing** the real binaries: shadowing would need `~/.local/bin` moved ahead of `/opt/homebrew/bin` in PATH, and would silently change what `claude` means for every script on the machine. A `t`-suffixed name clashes with nothing and needs no PATH surgery.
+
+Every argument passes through untouched, and the wrapper steps aside — exec'ing the real binary directly — whenever tmux would be wrong: **no TTY** (scripts, pipes, CI), already inside tmux, a `-p`/`--print` run, a non-interactive subcommand (`exec`, `run`, `mcp`, `plugin`, `doctor`, …), or `ART_NO_TMUX=1`. Tested: `claudet -p …` answers normally and creates zero tmux sessions.
+
+---
+
 ## [v0.4.2] — 2026-07-31
 
 **`art tmux` — one session per project, created once and reattached forever.**
