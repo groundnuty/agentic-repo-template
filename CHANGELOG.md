@@ -6,6 +6,14 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.4] — 2026-07-31
+
+**`code-craft.md`** joins the `code` profile: immutability over in-place mutation, ~400-line file / ~50-line function / 4-level nesting limits, explicit error handling ("a caught-and-ignored exception is a bug with a hiding place"), boundary validation, and no hardcoded secrets.
+
+These are the five durable preferences salvaged from a third-party global rule set (`everything-claude-code`'s `common-*.md`, copied into `~/.claude/rules/common/` in February and never updated since). A coverage check confirmed our corpus stated none of them as rules — immutability and file size appeared only as placeholder examples inside a comment. Everything else in that set was dropped deliberately: stale model tables, an agent roster pointing at an empty directory, an "ALWAYS use parallel Task execution" mandate that contradicts current delegation guidance, a blanket TDD/80%-coverage rule that fires in prose repos, and generic web-security checklists a model already knows.
+
+---
+
 ## [v0.4.3] — 2026-07-31
 
 **`art install-wrappers` — `claudet`, `codext`, `opencodet`.** Type the tool's name with a `t` and you get it inside a tmux session named after the directory: created on the first call, reattached every time after.
