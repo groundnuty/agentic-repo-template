@@ -6,6 +6,16 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.9] — 2026-08-26
+
+**Consumer hook registrations now survive an upgrade.** v0.4.8 made the loss *loud*; loud is not enough when the casualty is a security guard. `settings.json` is template-owned, so the overlay replaced it — taking any `PreToolUse` block a consumer had registered there. In the field that switched off a secret-leak guard four hours after it was installed for a real leak, and **an agent cannot put it back** (`settings.json` is deny-listed to agents, and widening its own permissions is forbidden), so the guard stays off until a human notices.
+
+The upgrade now merges back every hook **event** the new template does not itself ship. The template's own hooks always win, and an event listed under `.hooks` in `removed-entries.json` is **not** resurrected — a deliberate retirement still takes effect. Two tests cover both directions: a consumer `PreToolUse` guard survives (with the template's five events intact), and a retired event is not brought back.
+
+Verified while fixing: **hook layers merge, they do not replace** — a `PreToolUse` in `settings.json` and another in `settings.local.json` both fire for the same matcher. So `settings.local.json` is the structural home for consumer hooks (it is never overwritten), and the upgrade now says so instead of telling you to re-apply by hand.
+
+---
+
 ## [v0.4.8] — 2026-08-26
 
 **Upgrade reporting — from a consumer defect report.** A repo upgraded v0.3.0 → v0.4.7 was left with eight always-on rule files gone from the working tree but still tracked in git, and its `PreToolUse` hooks unregistered. Nothing was lost — the rules had **migrated into `AGENTS.md`** and the upgrade did say so — but the output was not legible enough to act on, so the consumer "recovered" by `git checkout`-ing the eight files back, re-creating a stale second copy of the corpus that now lives in `AGENTS.md`, and wrote a standing instruction to repeat that after every upgrade. Unclear reporting manufactured a permanent duplication ritual. Five fixes:

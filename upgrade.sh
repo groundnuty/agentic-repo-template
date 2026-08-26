@@ -484,14 +484,19 @@ report_custom_settings() {
       # it back (settings.json is deny-listed, and widening its own permissions is
       # forbidden), so only a human can — print the exact JSON to paste back.
       if [ "$sec" = "hooks" ]; then
+        # v0.4.9: these are merged back automatically after the overlay. The JSON
+        # is still printed so you can SEE what was at risk and move it to
+        # settings.local.json, which survives by construction.
         local block
         block="$(printf '%s\n' "$custom" | jq -Rn --slurpfile o "$old" \
           '[inputs] as $k | {hooks: ($o[0].hooks | with_entries(select(.key as $x | $k | index($x))))}' 2>/dev/null || true)"
         if [ -n "$block" ]; then
           echo
-          echo "  ** HOOK REGISTRATION REMOVED — the hook SCRIPTS survive, their wiring does not."
-          echo "     If any of these is a security guard, it is OFF until you paste this back into"
-          echo "     .claude/settings.local.json (an agent cannot do it for you):"
+          echo "  ** HOOK REGISTRATION — yours, in template-owned settings.json."
+          echo "     v0.4.9 MERGES these back after the upgrade, so a security guard is not"
+          echo "     silently switched off. To make that structural rather than rescued, move"
+          echo "     the block to .claude/settings.local.json: it is never overwritten, and"
+          echo "     hooks from both files fire (verified — layers merge, they do not replace):"
           printf '%s\n' "$block" | sed 's/^/     /'
           echo
         fi
@@ -571,6 +576,37 @@ fi
 # taken above already holds copies, so no stash is needed. Plugin-superseded
 # paths are NOT applied here — they are conditional on the verify (see
 # dedupe_plugin_superseded).
+# --- preserve consumer hook registrations (v0.4.9) --------------------------
+# settings.json is template-owned, so the overlay above replaced it — taking any
+# PreToolUse guard the consumer registered there. v0.4.8 made that loss LOUD;
+# loud is not enough when the casualty is a security hook that only a human can
+# restore (settings.json is deny-listed to agents). Hook EVENTS the new template
+# does not itself ship are merged back in, unless removed-entries.json retires
+# them on purpose. The template's own events always win — we never resurrect a
+# hook the template deliberately dropped.
+HOOKS_PRESERVED=""
+preserve_consumer_hooks() {
+  command -v jq >/dev/null 2>&1 || return 0
+  local old="$BACKUP/settings.json" new=".claude/settings.json"
+  local manifest="$SRC/.claude/removed-entries.json" retired="[]" kept tmpf keys
+  [ -f "$old" ] && [ -f "$new" ] || return 0
+  [ -f "$manifest" ] && retired="$(jq -c '.[".hooks"] // []' "$manifest" 2>/dev/null || echo '[]')"
+  kept="$(jq -rn --slurpfile o "$old" --slurpfile n "$new" --argjson retired "$retired" \
+    '(($o[0].hooks // {}) | keys) - (($n[0].hooks // {}) | keys) - $retired | .[]' 2>/dev/null || true)"
+  [ -n "$kept" ] || return 0
+  keys="$(printf '%s\n' "$kept" | jq -R . | jq -sc .)"
+  tmpf="$(mktemp)"
+  if jq --slurpfile o "$old" --argjson keys "$keys" \
+      '.hooks = ((.hooks // {}) + (($o[0].hooks // {}) | with_entries(select(.key as $k | $keys | index($k)))))' \
+      "$new" > "$tmpf" 2>/dev/null && [ -s "$tmpf" ]; then
+    mv "$tmpf" "$new"
+    HOOKS_PRESERVED="$kept"
+  else
+    rm -f "$tmpf"
+  fi
+}
+preserve_consumer_hooks
+
 REMOVED_LIST="$(apply_removal_manifest "$SRC/.claude/removed-files.txt" "")"
 
 # Migrations are removals whose CONTENT MOVED (v0.4: always-on rules -> AGENTS.md).
@@ -673,6 +709,12 @@ if [ -n "$MIGRATED_LIST" ]; then
   echo "    them as unstaged deletions — restoring them re-creates a stale second copy of the"
   echo "    same corpus, which can win over AGENTS.md. Stage the removals instead:"
   echo "        git add -u .claude/rules/"
+fi
+if [ -n "$HOOKS_PRESERVED" ]; then
+  echo
+  echo "  HOOKS PRESERVED — your registrations survived the settings.json overlay:"
+  printf '%s\n' "$HOOKS_PRESERVED" | sed '/^$/d; s|^|    hooks.|'
+  echo "    Move them to .claude/settings.local.json to make this structural."
 fi
 if [ -n "$REMOVED_LIST" ]; then
   echo
