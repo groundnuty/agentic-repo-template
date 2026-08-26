@@ -31,5 +31,7 @@ rules/cross-artifact-review.md
 rules/post-flight-verification.md
 rules/proofreading-protocol.md
 
-# v0.4.6: /persist became a command (commands/persist.md); the skill form is gone.
+# v0.4.6: /persist became a command; v0.4.7 renamed it /compact-prepare.
+# Both earlier forms are removed from consumers on upgrade.
 skills/persist/
+commands/persist.md

@@ -2,11 +2,16 @@
 description: Flush what this session learned into the files that outlive it - AGENTS.md, CLAUDE.md, project-conventions, path-scoped rules, auto-memory, checkpoint - each routed to the surface that actually holds it.
 ---
 
-# /persist
+# /compact-prepare
 
-Run this before context is lost — when compaction is imminent, at the end of a
-working session, or whenever you would otherwise type *"update your CLAUDE.md,
-memory and rules with whatever you'll need to keep working well."*
+Run this **before context is lost** — when the `PreCompact` hook warns that
+compaction is imminent, at the end of a working session, or whenever you would
+otherwise type *"update your CLAUDE.md, memory and rules with whatever you'll
+need to keep working well."*
+
+Compaction compresses the conversation; it does not write anything to disk. What
+is not in a file when it fires is gone. This command is the step that makes the
+next context window as good as this one.
 
 The work is **routing**. The same fact belongs in a different file depending on
 who needs it and when, and putting it in the wrong one either wastes context in
@@ -59,6 +64,6 @@ Two rules that matter more than the table:
 
 ## Do not
 
-- Persist something you will use in the next five minutes — that is the conversation.
+- Record something you will use in the next five minutes — that is the conversation.
 - Record speculation. If you are unsure a fact is durable, say so and let the user
   decide rather than committing a guess that every future session will read.

@@ -6,9 +6,9 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
-## [v0.4.6] — 2026-08-26
+## [v0.4.7] — 2026-08-26
 
-**`/persist` — flush what the session learned into the files that outlive it.** Shipped as a **command**, not a skill: it is always invoked deliberately, and a skill's description would sit in the inventory of every session for no benefit (v0.4.5 shipped it as a skill for a few minutes; the command supersedes it and upgrades remove the skill form). Say "update your CLAUDE.md / AGENTS.md / memory / rules", "save what you learned", or "write down what you'll need after compaction", and this fires.
+**`/compact-prepare` — flush what the session learned into the files that outlive it.** Named for *when* you need it: compaction compresses the conversation but writes nothing to disk, so whatever is not already in a file is gone. Shipped as a **command**, not a skill — it is always invoked deliberately, and a skill description would sit in every session's inventory for no benefit. (v0.4.5 shipped a `persist` skill and v0.4.6 a `persist` command; upgrades remove both.) Say "update your CLAUDE.md / AGENTS.md / memory / rules", "save what you learned", or "write down what you'll need after compaction", and this fires.
 
 The work it does is **routing**, which is the part that is easy to get wrong now that v0.4 has more surfaces than it used to:
 
