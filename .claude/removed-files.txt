@@ -2,9 +2,7 @@
 # upgrade.sh deletes these from consumer repos; the pre-upgrade backup keeps copies.
 # A line ending in "/" is a DIRECTORY and is removed recursively.
 # These removals are UNCONDITIONAL. Paths a capability PLUGIN superseded live in
-# plugin-superseded-files.txt instead: those are removed only in the branch where
-# the project-scoped plugin verify went green.
-# v0.2.0 (D44 context-engineering rethink):
+# plugin-superseded-files.txt; paths whose CONTENT MOVED live in migrated-files.txt.
 rules/meta-governance.md
 rules/exploration-fast-track.md
 rules/exploration-folder-protocol.md
@@ -12,26 +10,5 @@ rules/verification-before-done.md
 rules/tikz-prevention.md
 rules/tikz-library-bundle.md
 skills/humanizer/WARP.md
-
-# v0.4.0: always-on rules moved INTO AGENTS.md (read by Claude via the
-# @AGENTS.md import, and natively by Codex and OpenCode). Path-scoped rules and
-# project-conventions.md stay in .claude/rules/. Deleting these is what prevents
-# double-loading the same corpus twice in a Claude session.
-rules/autonomous-work.md
-rules/pr-discipline.md
-rules/writing-quality.md
-rules/prompt-shaping.md
-rules/session-logging.md
-rules/citation-discipline.md
-rules/knowledge-work-structure.md
-rules/reading-before-editing.md
-rules/testing-discipline.md
-rules/humanize-prose.md
-rules/cross-artifact-review.md
-rules/post-flight-verification.md
-rules/proofreading-protocol.md
-
-# v0.4.6: /persist became a command; v0.4.7 renamed it /compact-prepare.
-# Both earlier forms are removed from consumers on upgrade.
 skills/persist/
 commands/persist.md

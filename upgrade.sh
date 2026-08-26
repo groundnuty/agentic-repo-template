@@ -479,6 +479,23 @@ report_custom_settings() {
     if [ -n "$custom" ]; then
       echo "  .$sec keys — your customizations (re-apply via .claude/settings.local.json):"
       printf '%s\n' "$custom" | sed 's/^/    - /'
+      # settings.json is template-owned, so a consumer's own hook registration is
+      # replaced by the upgrade. Naming the key is not enough: an AGENT cannot put
+      # it back (settings.json is deny-listed, and widening its own permissions is
+      # forbidden), so only a human can — print the exact JSON to paste back.
+      if [ "$sec" = "hooks" ]; then
+        local block
+        block="$(printf '%s\n' "$custom" | jq -Rn --slurpfile o "$old" \
+          '[inputs] as $k | {hooks: ($o[0].hooks | with_entries(select(.key as $x | $k | index($x))))}' 2>/dev/null || true)"
+        if [ -n "$block" ]; then
+          echo
+          echo "  ** HOOK REGISTRATION REMOVED — the hook SCRIPTS survive, their wiring does not."
+          echo "     If any of these is a security guard, it is OFF until you paste this back into"
+          echo "     .claude/settings.local.json (an agent cannot do it for you):"
+          printf '%s\n' "$block" | sed 's/^/     /'
+          echo
+        fi
+      fi
     fi
   done
   local scal
@@ -554,7 +571,13 @@ fi
 # taken above already holds copies, so no stash is needed. Plugin-superseded
 # paths are NOT applied here — they are conditional on the verify (see
 # dedupe_plugin_superseded).
-apply_removal_manifest "$SRC/.claude/removed-files.txt" "" >/dev/null
+REMOVED_LIST="$(apply_removal_manifest "$SRC/.claude/removed-files.txt" "")"
+
+# Migrations are removals whose CONTENT MOVED (v0.4: always-on rules -> AGENTS.md).
+# They are reported separately and loudly: a consumer who reads `git status`, sees
+# eight deletions and runs `git checkout` re-creates a stale second copy of text
+# that now lives in AGENTS.md. That happened in the field; hence the warning.
+MIGRATED_LIST="$(apply_removal_manifest "$SRC/.claude/migrated-files.txt" "")"
 
 # Root-level template files: regenerate the declared .example files. The user's
 # live .mcp.json / k8s-mcp.toml are never listed and never touched.
@@ -635,6 +658,34 @@ echo "  Untouched: .claude/CLAUDE.md, rules/project-conventions.md, settings.loc
 echo "             session-reports/, and every custom file you added under .claude/"
 echo "  Merged:    template-owned files updated in place; fresh template CLAUDE.md (with this"
 echo "             profile's appends) saved to $BACKUP/CLAUDE.md.template-new for manual merge"
+
+# --- change manifest (v0.4.8) ----------------------------------------------
+# An upgrade that changes twenty files and prints nothing is indistinguishable
+# from one that changed none. Report what moved, what went, and what to do about
+# the deletions git will now show as unstaged.
+if [ -n "$MIGRATED_LIST" ]; then
+  echo
+  echo "  MIGRATED into AGENTS.md — content MOVED, not retired:"
+  printf '%s\n' "$MIGRATED_LIST" | sed '/^$/d; s|^|    .claude/|'
+  echo "    Claude reads them through the '@AGENTS.md' import in ./CLAUDE.md; Codex and"
+  echo "    OpenCode read AGENTS.md natively. Nothing was lost."
+  echo "    ** Do NOT 'git checkout' these paths. ** They are still in HEAD, so git will show"
+  echo "    them as unstaged deletions — restoring them re-creates a stale second copy of the"
+  echo "    same corpus, which can win over AGENTS.md. Stage the removals instead:"
+  echo "        git add -u .claude/rules/"
+fi
+if [ -n "$REMOVED_LIST" ]; then
+  echo
+  echo "  REMOVED by this template version (retired; copies remain in $BACKUP/):"
+  printf '%s\n' "$REMOVED_LIST" | sed '/^$/d; s|^|    .claude/|'
+fi
+if [ -f .claude/CLAUDE.md ] && grep -qE '^\s*-\s*`(autonomous-work|pr-discipline|writing-quality|citation-discipline|knowledge-work-structure|session-logging|prompt-shaping|reading-before-editing)\.md`' .claude/CLAUDE.md 2>/dev/null; then
+  echo
+  echo "  STALE DOC: .claude/CLAUDE.md still lists rules that moved into AGENTS.md."
+  echo "    It is your file, so the upgrade never rewrites it — but it now documents a layout"
+  echo "    that no longer exists. Fix the 'Rules applied' section (see $BACKUP/CLAUDE.md.template-new)."
+fi
+echo
 echo "  Review the settings report above (if any) and the backup before committing."
 
 # The scaffold upgrade SUCCEEDED and is fully reported above. Only now do we

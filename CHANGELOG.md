@@ -6,6 +6,20 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.8] — 2026-08-26
+
+**Upgrade reporting — from a consumer defect report.** A repo upgraded v0.3.0 → v0.4.7 was left with eight always-on rule files gone from the working tree but still tracked in git, and its `PreToolUse` hooks unregistered. Nothing was lost — the rules had **migrated into `AGENTS.md`** and the upgrade did say so — but the output was not legible enough to act on, so the consumer "recovered" by `git checkout`-ing the eight files back, re-creating a stale second copy of the corpus that now lives in `AGENTS.md`, and wrote a standing instruction to repeat that after every upgrade. Unclear reporting manufactured a permanent duplication ritual. Five fixes:
+
+- **The shipped `.claude/CLAUDE.md` stub no longer documents a dead layout.** It listed `autonomous-work.md` and `pr-discipline.md` as always-on rule files — *even on a fresh init*, where those files have not existed since v0.4.0. That stale doc is what sent the consumer hunting for "lost" files. It now points at `AGENTS.md` and lists only what `.claude/rules/` actually holds. A test fails if the stub ever again names a file the template deletes.
+- **Migrations are reported separately from removals.** New `migrated-files.txt` manifest (13 entries; `removed-files.txt` keeps the 9 true retirements). The upgrade prints `MIGRATED into AGENTS.md — content MOVED, not retired`, names every path, and warns **do not `git checkout` these** — with `git add -u .claude/rules/` as the correct action.
+- **Removed hook registrations print as pasteable JSON**, with an explicit warning that the scripts survive but their wiring does not, and that **an agent cannot restore it** (`settings.json` is deny-listed and self-widening is forbidden) — only a human can. A security guard silently switched off by routine maintenance is off until someone notices.
+- **A stale-doc detector**: if your preserved `.claude/CLAUDE.md` still names migrated rules, the upgrade says so and points at the fresh template copy in the backup.
+- **A change manifest** at the end: migrated, removed, untouched, and the backup path — an upgrade that changes twenty files and prints nothing is indistinguishable from one that changed none.
+
+Also documented: both guardrail hooks match refused patterns on **substring, not parsed argv**, so prose *describing* a refused command is refused too.
+
+---
+
 ## [v0.4.7] — 2026-08-26
 
 **`/compact-prepare` — flush what the session learned into the files that outlive it.** Named for *when* you need it: compaction compresses the conversation but writes nothing to disk, so whatever is not already in a file is gone. Shipped as a **command**, not a skill — it is always invoked deliberately, and a skill description would sit in every session's inventory for no benefit. (v0.4.5 shipped a `persist` skill and v0.4.6 a `persist` command; upgrades remove both.) Say "update your CLAUDE.md / AGENTS.md / memory / rules", "save what you learned", or "write down what you'll need after compaction", and this fires.

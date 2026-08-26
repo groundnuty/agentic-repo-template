@@ -1,0 +1,20 @@
+# Files (paths relative to .claude/) whose CONTENT MOVED rather than being retired.
+# upgrade.sh deletes them and reports them SEPARATELY from true removals, because
+# `git checkout`-ing them back re-creates a stale second copy of text that now lives
+# in AGENTS.md — the same corpus loaded twice, with the stale copy able to win.
+# Format matches removed-files.txt. Name the destination in the section comment.
+
+# v0.4.0: always-on rules -> AGENTS.md (Claude reads it via the @AGENTS.md import)
+rules/autonomous-work.md
+rules/pr-discipline.md
+rules/writing-quality.md
+rules/prompt-shaping.md
+rules/session-logging.md
+rules/citation-discipline.md
+rules/knowledge-work-structure.md
+rules/reading-before-editing.md
+rules/testing-discipline.md
+rules/humanize-prose.md
+rules/cross-artifact-review.md
+rules/post-flight-verification.md
+rules/proofreading-protocol.md

@@ -27,7 +27,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.4.7"
+TEMPLATE_VERSION="v0.4.8"
 
 # --- capability plugins (v0.3) ------------------------------------------------
 # A profile "declares" a plugin by carrying <name>@$MARKETPLACE_NAME in the
@@ -626,6 +626,7 @@ self_delete() {
   rm -f  .claude/init.sh
   rm -f  .claude/removed-entries.json  # upgrade-tooling manifest; read from the template source, not consumers
   rm -f  .claude/removed-files.txt     # same class: upgrade-tooling manifest
+  rm -f  .claude/migrated-files.txt    # same class: upgrade-tooling manifest
   rm -f  .claude/plugin-superseded-files.txt  # same class: upgrade-tooling manifest
 }
 

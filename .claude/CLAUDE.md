@@ -20,11 +20,14 @@
 
 ## Rules applied
 
-See `.claude/rules/` for the rule set (some load every session, some only when matching files are touched):
+The always-on instructions live in **`AGENTS.md`** at the repo root. Every harness
+reads them: Codex and OpenCode natively, Claude Code through the `@AGENTS.md`
+import in the root `CLAUDE.md`. Do not copy them here — one source, no drift.
 
-- `autonomous-work.md` — how to behave when running unattended (always)
-- `pr-discipline.md` — commit message format and PR structure (always)
-- `operations.md` — config mechanics: permission rules, MCP allow entries, deny-pattern coverage (when touching settings/MCP files)
+`.claude/rules/` holds only what is Claude-specific or conditional:
+
+- `operations.md` — config mechanics (loads when you touch settings/MCP files)
 - `project-conventions.md` — per-project overrides (fill in per project)
+- path-scoped rules — load only when you touch files matching their `paths:`
 
 <!-- Profile-specific rules are listed here by `.claude/init.sh`. -->
