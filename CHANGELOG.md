@@ -6,6 +6,28 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.5] — 2026-08-26
+
+**`/persist` — flush what the session learned into the files that outlive it.** Say "update your CLAUDE.md / AGENTS.md / memory / rules", "save what you learned", or "write down what you'll need after compaction", and this fires.
+
+The work it does is **routing**, which is the part that is easy to get wrong now that v0.4 has more surfaces than it used to:
+
+| The item is… | Goes to |
+|---|---|
+| guidance every agent needs, every session | `AGENTS.md`, **below** the managed fence |
+| a Claude-Code-only instruction | `CLAUDE.md`, below the import |
+| stack / layout / commands / do-not-touch | `rules/project-conventions.md` |
+| only matters for certain files | a path-scoped rule with `paths:` |
+| a machine-local preference | auto-memory (`/memory`) |
+| where-am-I / what's-next | `/checkpoint` |
+| the narrative | the session log |
+
+It refuses to write inside `<!-- BEGIN/END template-managed -->` (the next upgrade would erase it), prefers the narrowest surface that works, greps before adding so it sharpens an existing line rather than duplicating it, and reports what went where so you can correct the routing before it hardens.
+
+Also: **every shipped `SKILL.md` and agent file is now asserted to have parseable YAML frontmatter.** Writing this skill reproduced the exact defect that once left `review-paper` unregistered — a bare `: ` inside an unquoted description. A skill whose frontmatter fails to parse doesn't register at all, and nothing said so.
+
+---
+
 ## [v0.4.4] — 2026-07-31
 
 **`code-craft.md`** joins the `code` profile: immutability over in-place mutation, ~400-line file / ~50-line function / 4-level nesting limits, explicit error handling ("a caught-and-ignored exception is a bug with a hiding place"), boundary validation, and no hardcoded secrets.
