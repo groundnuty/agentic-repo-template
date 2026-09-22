@@ -225,6 +225,7 @@
       "scp:*",
       "rsync:*",
       "devbox:*",
+      "git add:*",
       "git commit:*",
       "git tag:*",
       "gpg:*",

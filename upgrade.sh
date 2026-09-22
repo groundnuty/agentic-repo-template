@@ -421,6 +421,9 @@ if ! (cd "$WORK" && ARP_SKIP_PLUGIN_INSTALL=1 bash ./.claude/init.sh "$PROFILE" 
   sed 's/^/    /' "$WORK/init.log" >&2
   exit 3
 fi
+# The scratch init's log is otherwise discarded; one of its notes is decision-
+# relevant: init.sh withholds `git add:*` on Claude Code < 2.1.277 (v0.4.10).
+grep -A3 '^note: omitted sandbox exclusion' "$WORK/init.log" 2>/dev/null || true
 
 # --- Settings report ---------------------------------------------------------
 # Diff the existing settings.json against the freshly generated one, then

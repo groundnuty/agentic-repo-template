@@ -6,6 +6,17 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.10] — 2026-09-22
+
+From a scan of Claude Code 2.1.221–2.1.280 (research doc 16).
+
+- **Chained commits sign again.** Claude Code 2.1.277 changed `sandbox.excludedCommands` so a compound command leaves the sandbox only when *every* part matches an entry. That closed the old hole — and silently broke the way agents commit: `git add … && git commit …` ran sandboxed and gpg failed with `can't create directory '~/.gnupg'`. v0.4.10 adds `git add:*`. Verified on 2.1.280: the chain signs, and `git add x && ls ~/.gnupg` still has its `ls` denied. Other shapes — `git -C … commit`, `git commit … && git push` — still need to be run as separate commands.
+- **`git add:*` is withheld on older Claude Code.** On a version before 2.1.277, one matching part exempted the whole chain, so the same entry would unsandbox `git add x && <anything>`. `init.sh` (and therefore `upgrade.sh`) writes it only when the `claude` on `$PATH` reports 2.1.277 or newer, and fails closed otherwise: an older, missing, or unreadable version omits the entry and says why. Tested across seven versions.
+- **Requirements:** Claude Code **2.1.277 or later recommended**, 2.1.187 still the minimum. Below 2.1.277 the existing `git commit:*`/`git tag:*` exclusions also exempt whole compounds — a pre-existing exposure since v0.3.1 that only a Claude Code upgrade removes.
+- **`autonomous-work` corrected:** dropped the "200 per session" spawn cap (removed in Claude Code 2.1.224) and the TaskList instruction (the task tools are not offered on current models since 2.1.268). The nesting-depth default of three is kept — confirmed in the current docs.
+
+---
+
 ## [v0.4.9] — 2026-08-26
 
 **Consumer hook registrations now survive an upgrade.** v0.4.8 made the loss *loud*; loud is not enough when the casualty is a security guard. `settings.json` is template-owned, so the overlay replaced it — taking any `PreToolUse` block a consumer had registered there. In the field that switched off a secret-leak guard four hours after it was installed for a real leak, and **an agent cannot put it back** (`settings.json` is deny-listed to agents, and widening its own permissions is forbidden), so the guard stays off until a human notices.

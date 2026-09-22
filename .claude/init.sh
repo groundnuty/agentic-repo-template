@@ -27,7 +27,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.4.9"
+TEMPLATE_VERSION="v0.4.10"
 
 # --- capability plugins (v0.3) ------------------------------------------------
 # A profile "declares" a plugin by carrying <name>@$MARKETPLACE_NAME in the
@@ -164,6 +164,39 @@ apply_settings_overlay() {
   ' "$settings" > "$tmp"
 
   mv "$tmp" "$settings"
+}
+
+# --- `git add:*` needs Claude Code >= 2.1.277 (v0.4.10) ------------------------
+# 2.1.277 changed sandbox.excludedCommands so a compound command leaves the
+# sandbox only when EVERY part matches an entry. That is what makes `git add:*`
+# safe: `git add x && git commit -m y` signs, while `git add x && <anything>`
+# stays sandboxed (both verified on 2.1.280, doc 16 F3). On an OLDER Claude Code
+# one matching part exempted the WHOLE chain, so the same entry would unsandbox
+# `git add x && <anything>`. We cannot know which Claude Code will open the repo
+# later; we can refuse to write the entry on a host whose Claude Code is too old
+# or unknown. Fail closed: no claude, unparsable version, or < 2.1.277 -> omit.
+GIT_ADD_MIN_CC="2.1.277"
+cc_version() {
+  command -v claude >/dev/null 2>&1 || return 1
+  claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
+}
+version_ge() {  # version_ge A B  ->  true when A >= B (dotted numeric)
+  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = "$2" ]
+}
+gate_git_add_exclusion() {
+  local settings=".claude/settings.json" v tmp
+  [ -f "$settings" ] || return 0
+  "$JQ" -e '(.sandbox.excludedCommands // []) | index("git add:*")' "$settings" >/dev/null 2>&1 || return 0
+  v="$(cc_version || true)"
+  if [ -n "$v" ] && version_ge "$v" "$GIT_ADD_MIN_CC"; then
+    return 0
+  fi
+  tmp=$(mktemp)
+  "$JQ" '.sandbox.excludedCommands |= map(select(. != "git add:*"))' "$settings" > "$tmp" && mv "$tmp" "$settings"
+  echo "note: omitted sandbox exclusion 'git add:*' — Claude Code ${v:-not found} is older than $GIT_ADD_MIN_CC."
+  echo "      Before 2.1.277 one matching part took a WHOLE compound command out of the sandbox."
+  echo "      Chained 'git add … && git commit …' will not be signed; run the two as separate"
+  echo "      commands, or upgrade Claude Code and re-run: bash upgrade.sh"
 }
 
 canonicalize_settings() {
@@ -775,6 +808,10 @@ EOF
   fi
   if [ "$dry_run" = "0" ] && [ "$strict_sandbox" = "1" ]; then
     apply_strict_sandbox
+  fi
+
+  if [ "$dry_run" = "0" ]; then
+    gate_git_add_exclusion
   fi
 
   # Author settings.json in `jq -S` order so the first `claude plugin install`

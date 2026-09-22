@@ -246,7 +246,7 @@ From v0.3.0 the rest of the adopted corpus — the ten paper skills and five ref
 
 ## Requirements
 
-- [Claude Code](https://claude.com/claude-code) **v2.1.187 or later** — the floor tracks the newest settings key the template ships (`sandbox.credentials`, added CC v2.1.187; silently inert below that). Earlier features assumed: `PreCompact`/`ConfigChange` hooks, exec-wrapper deny coverage (v2.1.113+), `Edit(path)` file-permission semantics (v2.1.210 recommended). npm `stable` dist-tag satisfies the floor.
+- [Claude Code](https://claude.com/claude-code) **v2.1.277 or later recommended**, v2.1.187 minimum. Below 2.1.277, `sandbox.excludedCommands` exempts a *whole* compound command when any one part matches, so `git commit … && <anything>` runs outside the sandbox; the template then withholds `git add:*` and prints why. 2.1.277 is also where Claude Code starts reading `AGENTS.md` natively (the `@AGENTS.md` import in `CLAUDE.md` covers older versions). The v2.1.187 minimum tracks the newest settings key the template ships (`sandbox.credentials`, added CC v2.1.187; silently inert below that). Earlier features assumed: `PreCompact`/`ConfigChange` hooks, exec-wrapper deny coverage (v2.1.113+), `Edit(path)` file-permission semantics (v2.1.210 recommended). npm `stable` dist-tag satisfies the floor.
 - `jq` on your `$PATH` (for the init script's deep-merge).
 - The **`claude` CLI on your `$PATH` at init/upgrade time** (v0.3.0+) — capability-plugin delivery is a real `claude plugin marketplace add` + `claude plugin install --scope project` + verify, run by `init.sh`/`upgrade.sh`. Only the `paper` tiers declare a plugin; on the other profiles the step is a no-op. Without the CLI, init exits 5 / upgrade exits 4 and prints the exact commands to run by hand.
 - `git` on your `$PATH` — `upgrade.sh` clones the template, and `claude plugin marketplace add` clones the marketplace.
@@ -343,6 +343,7 @@ Excluded commands run **entirely outside** the sandbox, and matching is broad (a
 | `ssh:*`, `scp:*`, `rsync:*` | Remote transport; needs agent sockets + arbitrary hosts |
 | `devbox:*` | Nix-backed store writes outside allowed paths |
 | `git commit:*`, `git tag:*` | **Signed** commits/tags: git spawns gpg, which needs the `~/.gnupg` agent socket `sandbox.credentials` guards. Scoped to these two verbs — the blanket `git:*` hole stays closed (v0.3.1) |
+| `git add:*` | Lets the usual `git add … && git commit …` chain sign. Since Claude Code 2.1.277 a compound command leaves the sandbox only when **every** part matches an entry, so `git add x && <anything>` stays sandboxed. **Written only when the Claude Code running `init.sh`/`upgrade.sh` is 2.1.277 or newer** — on an older version one matching part unsandboxed the whole chain (v0.4.10) |
 | `gpg:*`, `gpg-agent:*` | Signing needs the `~/.gnupg` agent socket that `denyRead` guards |
 | `helm/kubectl/kustomize/terraform/docker/podman:*` (code profile) | Go-binary TLS fails under Seatbelt; docker daemon socket |
 

@@ -16,7 +16,7 @@ Deliver what was asked, at the scope intended. If the request seems mistaken or 
 ## Judgment vs. escalation
 
 - **Make routine judgment calls yourself** and state the assumption in one line.
-- **Stop and wait** only when readings differ materially, evidence contradicts the plan, or the action is risky or irreversible. Say plainly what is blocked and what you need. If you are working through a TaskList, mark the task `blocked` with the reason.
+- **Stop and wait** only when readings differ materially, evidence contradicts the plan, or the action is risky or irreversible. Say plainly what is blocked and what you need.
 - **Prefer surfacing over papering over.** Silent workarounds — suppressing linter rules, mocking what should be real, disabling tests — stay prohibited.
 - **Do not widen your own permissions.** If `settings.local.json` does not already allow something you believe you need, surface the need and wait for the user to grant it. Editing the allow list to unblock yourself is not an option.
 
@@ -24,7 +24,7 @@ Deliver what was asked, at the scope intended. If the request seems mistaken or 
 
 - Delegate to subagents only for sizeable, genuinely independent tracks. Do not delegate what a handful of tool calls finishes.
 - Do not spawn a subagent to re-check work you just did in this context — it inherits your framing. Do keep verifiers that never saw the draft; fresh-context verification is the pattern that works.
-- Pin `model:` on dispatches. Keep spawn counts low (defaults: 200 per session, 20 concurrent, nest depth 3).
+- Pin `model:` on dispatches. Keep spawn counts low; subagents can nest three layers deep by default.
 
 ## Working across machines
 
