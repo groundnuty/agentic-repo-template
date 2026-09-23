@@ -612,11 +612,11 @@ preserve_consumer_hooks
 
 REMOVED_LIST="$(apply_removal_manifest "$SRC/.claude/removed-files.txt" "")"
 
-# Migrations are removals whose CONTENT MOVED (v0.4: always-on rules -> AGENTS.md).
-# They are reported separately and loudly: a consumer who reads `git status`, sees
-# eight deletions and runs `git checkout` re-creates a stale second copy of text
-# that now lives in AGENTS.md. That happened in the field; hence the warning.
-MIGRATED_LIST="$(apply_removal_manifest "$SRC/.claude/migrated-files.txt" "")"
+# Migrations (v0.4: always-on rules -> AGENTS.md) are applied AFTER the AGENTS.md
+# step below — see apply_migrations. v0.4.0–v0.4.11 deleted them here, before
+# placing anything: in a repo whose AGENTS.md had no template fence the corpus
+# then landed nowhere, and an edited rule was lost too (v0.4.12, D58).
+MIGRATED_LIST=""; MIGRATION_KEPT=""
 
 # Root-level template files: regenerate the declared .example files. The user's
 # live .mcp.json / k8s-mcp.toml are never listed and never touched.
@@ -678,6 +678,34 @@ migrate_agents_md() {
 AGENTS_NOTE=""
 migrate_agents_md
 
+# Delete a migrated rule only when (a) AGENTS.md now carries the template-managed
+# corpus and (b) the consumer's copy is byte-identical to a version the template
+# shipped (migrated-rule-hashes.txt). Anything else is kept and reported: a rule
+# is never deleted unless its content verifiably lives on, unedited, in AGENTS.md.
+apply_migrations() {
+  local manifest="$SRC/.claude/migrated-files.txt" hashes="$SRC/.claude/migrated-rule-hashes.txt"
+  local rf target h placed=0
+  [ -f "$manifest" ] || return 0
+  grep -qF "$AGENTS_BEGIN" AGENTS.md 2>/dev/null && placed=1
+  while IFS= read -r rf || [ -n "$rf" ]; do
+    case "$rf" in ""|\#*) continue ;; esac
+    target=".claude/$rf"
+    [ -f "$target" ] || continue
+    if [ "$placed" != "1" ]; then
+      MIGRATION_KEPT="${MIGRATION_KEPT}${rf}	AGENTS.md has no template-managed region, so the rule was not placed"$'\n'
+      continue
+    fi
+    h="$( (shasum -a 256 "$target" 2>/dev/null || sha256sum "$target") | cut -d' ' -f1)"
+    if [ -f "$hashes" ] && grep -q "^$h  $rf\$" "$hashes"; then
+      rm -f "$target"
+      MIGRATED_LIST="${MIGRATED_LIST}${rf}"$'\n'
+    else
+      MIGRATION_KEPT="${MIGRATION_KEPT}${rf}	edited since the template shipped it — kept; merge your edits into AGENTS.md"$'\n'
+    fi
+  done < "$manifest"
+}
+apply_migrations
+
 # Ensure the backup directory is gitignored.
 if [ -f .gitignore ] && ! grep -q '^\.claude\.pre-upgrade-' .gitignore; then
   printf '\n# Template upgrade backups\n.claude.pre-upgrade-*/\n' >> .gitignore
@@ -718,6 +746,11 @@ if [ -n "$HOOKS_PRESERVED" ]; then
   echo "  HOOKS PRESERVED — your registrations survived the settings.json overlay:"
   printf '%s\n' "$HOOKS_PRESERVED" | sed '/^$/d; s|^|    hooks.|'
   echo "    Move them to .claude/settings.local.json to make this structural."
+fi
+if [ -n "$MIGRATION_KEPT" ]; then
+  echo
+  echo "  KEPT in .claude/rules/ — NOT moved into AGENTS.md (nothing was deleted):"
+  printf '%s' "$MIGRATION_KEPT" | sed '/^$/d' | awk -F'\t' '{printf "    .claude/%s — %s\n", $1, $2}'
 fi
 if [ -n "$REMOVED_LIST" ]; then
   echo

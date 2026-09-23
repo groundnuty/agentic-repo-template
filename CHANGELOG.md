@@ -6,6 +6,21 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.12] — 2026-09-23
+
+**Upgrades no longer delete rules they have not placed. If you upgraded a repo whose `AGENTS.md` had no template fence, check it.**
+
+v0.4.0 moved the always-on rules into `AGENTS.md`, and `upgrade.sh` deleted the old `.claude/rules/` copies. It deleted them *before* placing anything, and never checked that they had landed. Two layouts lost content:
+
+- **An `AGENTS.md` you already had, without template fences.** The upgrade (rightly) left your file alone — and so the rules went nowhere. They were not in `AGENTS.md`, not in `.claude/rules/`, and no agent in any harness saw them. Worse, v0.4.8's report then said the content had *moved* and told you **not** to `git checkout` it: for this layout that advice was wrong, and `git checkout` was the correct recovery. Nine repos in one fleet had this layout. The consumer defect report of 2026-08-26 was describing exactly this; it was dismissed at the time on a reproduction that lacked a pre-existing `AGENTS.md`.
+- **A rule you had edited.** It was deleted like any other, edits included (the backup kept a copy).
+
+Now a migrated rule is deleted only when **both** hold: `AGENTS.md` carries the template-managed region, and your copy is byte-identical to a version the template shipped (`migrated-rule-hashes.txt`, generated from the template's git history). Anything else stays in `.claude/rules/` and is reported with the reason; the "MIGRATED — do not `git checkout`" notice now lists only rules verifiably moved. In the worst case the upgrade deletes nothing.
+
+**If you already upgraded such a repo:** your old rules are in `.claude.pre-upgrade-<version>/rules/` and in git history; `git checkout HEAD~N -- .claude/rules/<name>.md` (or copy from the backup) restores them.
+
+---
+
 ## [v0.4.11] — 2026-09-23
 
 A second audit of everything the template takes from the internet (D57).
