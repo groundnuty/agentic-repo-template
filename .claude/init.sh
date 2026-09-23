@@ -7,7 +7,7 @@
 #   ./.claude/init.sh --cloud-compat                                            [--dry-run]   (deprecated)
 #
 # Deep-merges profiles/<profile>/settings.overlay.json into .claude/settings.json,
-# copies rule files and skill dirs, appends CLAUDE.append.md to .claude/CLAUDE.md,
+# copies rule files and skill dirs, composes rules + CLAUDE.append.md into AGENTS.md,
 # merges skills.manifest.json entries, installs the profile's capability plugins
 # (v0.3), then removes profiles/ and init.sh.
 #
@@ -27,7 +27,7 @@ set -eu
 
 VALID_PROFILES=(info research paper paper-latex code)
 JQ="${JQ:-jq}"
-TEMPLATE_VERSION="v0.4.12"
+TEMPLATE_VERSION="v0.5.0"
 
 # --- capability plugins (v0.3) ------------------------------------------------
 # A profile "declares" a plugin by carrying <name>@$MARKETPLACE_NAME in the
@@ -199,6 +199,51 @@ gate_git_add_exclusion() {
   echo "      commands, or upgrade Claude Code and re-run: bash upgrade.sh"
 }
 
+# --- retire CLAUDE.md (v0.5.0) -----------------------------------------------
+# AGENTS.md is the only instruction file. Any CLAUDE.md, .claude/CLAUDE.md or
+# .claude/rules/project-conventions.md present now — the template's own stubs,
+# a GitHub-template fork's root file, or a project's own — is moved into
+# AGENTS.md below the managed region by migrate-instructions.py: sections that
+# are pure template text (every line one the template ever shipped) are dropped,
+# everything else moves verbatim, and a file is deleted only after the moved
+# lines are verified in AGENTS.md. Without python3 nothing is moved or deleted.
+INSTRUCTION_SOURCES="CLAUDE.md .claude/CLAUDE.md .claude/rules/project-conventions.md"
+retire_claude_md() {
+  local helper="$1" lines="$2" report="${3:-}" src any=0
+  for src in $INSTRUCTION_SOURCES; do [ -e "$src" ] && any=1; done
+  [ "$any" = "1" ] || return 0
+  if ! command -v python3 >/dev/null 2>&1 || [ ! -f "$helper" ] || [ ! -f AGENTS.md ]; then
+    echo "warning: could not retire CLAUDE.md here (python3 or AGENTS.md missing); nothing was moved or deleted."
+    return 0
+  fi
+  # shellcheck disable=SC2086  # INSTRUCTION_SOURCES is a fixed list of paths without spaces
+  if [ -n "$report" ]; then
+    python3 "$helper" --agents AGENTS.md --template-lines "$lines" $INSTRUCTION_SOURCES > "$report" 2>&1 || true
+  else
+    python3 "$helper" --agents AGENTS.md --template-lines "$lines" $INSTRUCTION_SOURCES \
+      | awk -F'\t' '$1=="MOVED"{print "  moved your text from " $2 " into AGENTS.md (" $3 " lines)"}
+                    $1=="KEPT"{print "  KEPT " $2 ": " $3}' || true
+  fi
+}
+
+# AGENTS.md is read natively only by Claude Code >= 2.1.277, and only when no
+# CLAUDE.md-class file exists at or above the working directory (CLAUDE.local.md
+# counts). Say so when either condition fails; do not guess further.
+AGENTS_NATIVE_MIN_CC="2.1.277"
+warn_instruction_reading() {
+  local v; v="$(cc_version || true)"
+  if [ -z "$v" ] || ! version_ge "$v" "$AGENTS_NATIVE_MIN_CC"; then
+    echo "WARNING: Claude Code ${v:-not found} reads AGENTS.md natively only from $AGENTS_NATIVE_MIN_CC. This repo has"
+    echo "         no CLAUDE.md, so an older Claude Code sees NO project instructions. Upgrade Claude Code."
+  fi
+  if [ -f CLAUDE.local.md ]; then
+    echo "WARNING: CLAUDE.local.md exists (left untouched — it is private). Its presence stops Claude Code"
+    echo "         reading AGENTS.md unless your user settings set pluginConfigs.\"agents-md@builtin\""
+    echo "         .options.instructionFiles to \"claude-md-and-agents-md\"."
+  fi
+}
+
+
 canonicalize_settings() {
   # `claude plugin marketplace add|install` rewrite .claude/settings.json in an
   # UNSTABLE key order (Phase-0 measured three different orders and 162 churn
@@ -287,15 +332,15 @@ declared_plugins_for_chain() {
   done | sort -u
 }
 
-# --- AGENTS.md: the cross-harness instruction file (v0.4.0) ---------------
-# Codex and OpenCode read ONE instruction file, AGENTS.md, and ignore CLAUDE.md
-# and .claude/rules/ entirely (verified empirically, 2026-07-29). Claude Code is
-# the mirror image: it ignores AGENTS.md unless CLAUDE.md imports it.
+# --- AGENTS.md: the only instruction file (v0.4.0; sole since v0.5.0) ------
+# Codex and OpenCode read AGENTS.md and ignore .claude/rules/ (verified
+# 2026-07-29). Claude Code 2.1.277+ reads AGENTS.md natively too — but only
+# while no CLAUDE.md-class file exists at or above the working directory, so
+# v0.5.0 ships none (verified live: a stray CLAUDE.md makes Claude blind to it).
 #
-# So the always-on rules are composed INTO AGENTS.md, and .claude/rules/ keeps
-# only the path-scoped ones (no other harness has glob scoping). Claude reads the
-# same bytes through the `@AGENTS.md` import in CLAUDE.md — one source, no
-# duplication, no double-loading.
+# So the always-on rules and each profile's guidance are composed INTO
+# AGENTS.md, and .claude/rules/ keeps only the path-scoped rules (no other
+# harness has glob scoping) — one source, no duplication, no double-loading.
 #
 # The generated part is fenced. upgrade.sh replaces ONLY what is between the
 # markers, so anything you add outside them survives (D49).
@@ -324,14 +369,16 @@ compose_agents_rules() {
   done < <(find .claude/rules -maxdepth 1 -name '*.md' | sort)
 }
 
-# Write AGENTS.md (managed region) + the CLAUDE.md import shim.
+# Write AGENTS.md: the managed region (rules + profile guidance) and, for a new
+# file, a project skeleton below it. v0.5.0: there is no CLAUDE.md.
 finalize_agents_md() {
   local profile="$1"
   [ -f "$AGENTS_TMP" ] || return 0
   local body; body="$(cat "$AGENTS_TMP")"
+  local appends=""; [ -f "$APPENDS_TMP" ] && appends="$(cat "$APPENDS_TMP")"
   local managed
-  managed="$(printf '%s\n# Agent instructions\n\nThis repository is configured from agentic-repo-template (profile: %s).\nEvery agent harness reads this file: Codex and OpenCode natively, Claude Code\nthrough the `@AGENTS.md` import in CLAUDE.md.\n%s\n%s\n' \
-    "$AGENTS_BEGIN" "$profile" "$body" "$AGENTS_END")"
+  managed="$(printf '%s\n# Agent instructions\n\nThis repository is configured from agentic-repo-template (profile: %s).\nEvery agent harness reads this file natively: Claude Code (2.1.277+), Codex\nand OpenCode. There is deliberately no CLAUDE.md.\n%s\n%s\n%s\n' \
+    "$AGENTS_BEGIN" "$profile" "$body" "$appends" "$AGENTS_END")"
 
   printf '%s\n' "$managed" > .agents-managed.tmp
   if [ -f AGENTS.md ] && grep -qF "$AGENTS_BEGIN" AGENTS.md; then
@@ -345,39 +392,39 @@ finalize_agents_md() {
   elif [ -f AGENTS.md ]; then
     { cat .agents-managed.tmp; echo; cat AGENTS.md; } > AGENTS.md.new && mv AGENTS.md.new AGENTS.md
   else
-    { cat .agents-managed.tmp; echo; \
-      echo "<!-- Your own project instructions go below; the template never touches them. -->"; \
-    } > AGENTS.md
+    { cat .agents-managed.tmp; echo; cat <<'SKEL'; } > AGENTS.md
+<!-- Your own project instructions go below; the template never touches them. -->
+
+## Project overview
+
+<!-- 1-2 sentences: what this project is and who it serves. -->
+
+## Build, test, run
+
+<!-- Exact commands. If using devbox: `devbox run -- make check`. -->
+
+## Conventions
+
+<!-- Stack, the conventions the rules above don't cover, where new code, tests and docs go. -->
+
+## Do-not-touch zones
+
+<!-- Files or directories that must not be edited without explicit approval. -->
+SKEL
   fi
-  rm -f "$AGENTS_TMP" .agents-managed.tmp
+  rm -f "$AGENTS_TMP" "$APPENDS_TMP" .agents-managed.tmp
 
-  # CLAUDE.md: the import shim Anthropic documents, plus a pointer to the
-  # Claude-only surfaces. Never overwrite a CLAUDE.md that already imports.
-  if [ ! -f CLAUDE.md ] || ! grep -q '^@AGENTS.md' CLAUDE.md; then
-    cat > CLAUDE.md <<'SHIM'
-@AGENTS.md
-
-## Claude Code specifics
-
-The shared instructions live in `AGENTS.md` (imported above) so Codex and
-OpenCode read the same bytes. Claude-only surfaces:
-
-- `.claude/rules/*.md` — path-scoped rules; they load only when you touch
-  matching files, which no other harness supports.
-- `.claude/settings.json` — permissions, sandbox, hooks, plugin declaration.
-- `.claude/skills/` — repo-local skills (also read by OpenCode).
-
-Add Claude-specific instructions below this line; anything that should reach
-every harness belongs in `AGENTS.md`.
-SHIM
-  fi
 }
 
+APPENDS_TMP=".agents-appends.tmp"
 append_claude_md() {
+  # v0.5.0: a profile's CLAUDE.append.md is template-owned guidance, so it lives
+  # in AGENTS.md's managed region (refreshed on every upgrade) — there is no
+  # CLAUDE.md any more.
   local profile_dir="$1"
   local snippet="$profile_dir/CLAUDE.append.md"
   [ -f "$snippet" ] || return 0
-  { echo; cat "$snippet"; } >> .claude/CLAUDE.md
+  { echo; cat "$snippet"; } >> "$APPENDS_TMP"
 }
 
 merge_skills_manifest() {
@@ -533,8 +580,9 @@ cleanup_template_metadata() {
   # consuming project.
 
   # README.md: replace with a minimal stub carrying the repo name.
-  # LICENSE, .gitignore, and the root CLAUDE.md stub are kept — all reasonable
-  # starting points the user can keep or replace.
+  # LICENSE and .gitignore are kept — reasonable starting points. A root
+  # CLAUDE.md (a fork's stub or the project's own) is retired into AGENTS.md by
+  # retire_claude_md, never deleted outright.
   if [ -f README.md ] && head -1 README.md | grep -q '^# agentic-repo-template'; then
     local repo_name
     repo_name=$(basename "$(pwd)")
@@ -662,6 +710,7 @@ self_delete() {
   rm -f  .claude/migrated-files.txt    # same class: upgrade-tooling manifest
   rm -f  .claude/migrated-rule-hashes.txt  # same class: upgrade-tooling data
   rm -f  .claude/template-lines.txt     # same class: upgrade-tooling data
+  rm -f  .claude/migrate-instructions.py  # same class: upgrade tooling (upgrade.sh runs its own copy)
   rm -f  .claude/plugin-superseded-files.txt  # same class: upgrade-tooling manifest
 }
 
@@ -789,7 +838,10 @@ EOF
     merge_skills_manifest "$profile_dir"
   done
 
-  if [ "$dry_run" != "1" ]; then compose_agents_rules; finalize_agents_md "$profile"; fi
+  if [ "$dry_run" != "1" ]; then
+    compose_agents_rules; finalize_agents_md "$profile"
+    retire_claude_md .claude/migrate-instructions.py .claude/template-lines.txt
+  fi
 
   if [ "$dry_run" = "1" ] && [ -n "$declared_chain" ]; then
     echo "[dry-run] would then run, IN THIS DIRECTORY:"
@@ -863,6 +915,12 @@ EOF
       echo "  profiles/ and init.sh retained (--keep-profiles)."
     else
       echo "  profiles/ and init.sh removed (self-cleaned)."
+    fi
+    echo "  Instructions:    AGENTS.md only — no CLAUDE.md (v0.5.0). Put your own text below its managed region."
+    warn_instruction_reading
+    if [ -f AGENTS.md ] && [ "$(wc -c < AGENTS.md | tr -d ' ')" -gt 32768 ]; then
+      echo "WARNING: AGENTS.md is over 32 KiB; Codex reads only the first 32 KiB by default. Raise"
+      echo "         project_doc_max_bytes in ~/.codex/config.toml (e.g. 262144)."
     fi
   fi
 

@@ -63,7 +63,7 @@ Hosts are surveyed in parallel over ssh with a self-contained POSIX snippet — 
 ./.claude/init.sh code         # code-centric projects
 ```
 
-The script merges the profile's overlay into `.claude/settings.json`, copies profile-specific rules into `.claude/rules/`, appends profile guidance to `.claude/CLAUDE.md`, vendors profile-specific skills into `.claude/skills/`, then removes `.claude/profiles/` and `.claude/init.sh` themselves. Your repo ends up with only the final configuration.
+The script merges the profile's overlay into `.claude/settings.json`, copies profile-specific rules into `.claude/rules/`, composes the always-on rules and the profile's guidance into **`AGENTS.md`** — the only instruction file, with a project skeleton below its template-managed region — vendors profile-specific skills into `.claude/skills/`, then removes `.claude/profiles/` and `.claude/init.sh` themselves. There is no `CLAUDE.md` (v0.5.0). Your repo ends up with only the final configuration.
 
 The `paper` and `paper-latex` profiles additionally **install and verify** the `agentic-paper` capability plugin at project scope — the paper skills, agents and the texlab LSP config ship as a plugin now, not as file copies. That step needs the `claude` CLI on `$PATH` and (once) network access; see [Capability plugins](#capability-plugins-v030).
 
@@ -246,7 +246,7 @@ From v0.3.0 the rest of the adopted corpus — the ten paper skills and five ref
 
 ## Requirements
 
-- [Claude Code](https://claude.com/claude-code) **v2.1.277 or later recommended**, v2.1.187 minimum. Below 2.1.277, `sandbox.excludedCommands` exempts a *whole* compound command when any one part matches, so `git commit … && <anything>` runs outside the sandbox; the template then withholds `git add:*` and prints why. 2.1.277 is also where Claude Code starts reading `AGENTS.md` natively (the `@AGENTS.md` import in `CLAUDE.md` covers older versions). The v2.1.187 minimum tracks the newest settings key the template ships (`sandbox.credentials`, added CC v2.1.187; silently inert below that). Earlier features assumed: `PreCompact`/`ConfigChange` hooks, exec-wrapper deny coverage (v2.1.113+), `Edit(path)` file-permission semantics (v2.1.210 recommended). npm `stable` dist-tag satisfies the floor.
+- [Claude Code](https://claude.com/claude-code) **v2.1.277 or later — required from v0.5.0.** The template ships no `CLAUDE.md`; Claude Code reads `AGENTS.md` natively only from 2.1.277, so an older version sees **no project instructions at all** (init and upgrade warn). 2.1.277 is also where `sandbox.excludedCommands` stopped exempting a whole compound command when one part matched; on older versions `git commit … && <anything>` runs unsandboxed, and the template withholds `git add:*`. Native reading also needs feature-flag fetching (not on Bedrock/Vertex/Foundry or with telemetry disabled) and is off in the first session after installing or upgrading Claude Code.
 - `jq` on your `$PATH` (for the init script's deep-merge).
 - The **`claude` CLI on your `$PATH` at init/upgrade time** (v0.3.0+) — capability-plugin delivery is a real `claude plugin marketplace add` + `claude plugin install --scope project` + verify, run by `init.sh`/`upgrade.sh`. Only the `paper` tiers declare a plugin; on the other profiles the step is a no-op. Without the CLI, init exits 5 / upgrade exits 4 and prints the exact commands to run by hand.
 - `git` on your `$PATH` — `upgrade.sh` clones the template, and `claude plugin marketplace add` clones the marketplace.
@@ -258,7 +258,7 @@ From v0.3.0 the rest of the adopted corpus — the ten paper skills and five ref
 ### Base `.claude/` (shipped to every profile)
 
 - `settings.json` — permissions (wildcard allow with bare tool names + deny list with `Edit(...)` rules for sensitive paths — `Edit(path)` covers all file-editing tools incl. `Write`/`NotebookEdit` per Claude Code v2.1.210+), sandbox (OS-level enforcement, cloud-safe by default — `enableWeakerNestedSandbox: true`, no `failIfUnavailable`; opt into the hard gate with `init.sh --strict-sandbox`; `sandbox.credentials.files` blocks sandboxed shells from reading credential dirs like `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config/gh`, `~/.netrc`), plugins (5 baseline, +`context7` on four profiles, +`agentic-paper` on the paper tiers), `extraKnownMarketplaces` (our `agentic-plugins` marketplace, on every profile), hooks (SessionStart / ConfigChange / PreCompact / SessionEnd), env (`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`), `effortLevel: xhigh` + `verbose: true` tuned for agentic work.
-- `CLAUDE.md` — project-conventions stub. Each profile appends a `CLAUDE.append.md` overview on init.
+- `AGENTS.md` — the only instruction file. A template-managed region (always-on rules + the profile's guidance, refreshed on upgrade) and your own sections below it. Claude Code 2.1.277+, Codex and OpenCode all read it natively. **There is deliberately no `CLAUDE.md`:** Claude Code stops reading `AGENTS.md` natively as soon as any `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists at or above the working directory.
 - `rules/` — four base rules: `autonomous-work.md`, `operations.md` (path-scoped), `pr-discipline.md`, `project-conventions.md`.
 - `audit.log` — committed to git; `ConfigChange` hook appends a line on every `.claude/*` modification.
 - `session-reports/` — session transcripts and git-state snapshots from `PreCompact` / `SessionEnd` hooks.
@@ -278,7 +278,7 @@ From v0.3.0 the rest of the adopted corpus — the ten paper skills and five ref
 
 v0.3.0 splits the template into **two layers**, matching what the plugin substrate can and cannot carry:
 
-- **Scaffold** — everything a plugin *cannot* ship: `settings.json`, rules, `CLAUDE.md`, `.gitignore`, hooks, templates, and the `.mcp.json.example` opt-in layer. File-copied by `init.sh` / `bootstrap.sh` / `upgrade.sh`, exactly as before.
+- **Scaffold** — everything a plugin *cannot* ship: `settings.json`, rules, `AGENTS.md`, `.gitignore`, hooks, templates, and the `.mcp.json.example` opt-in layer. File-copied by `init.sh` / `bootstrap.sh` / `upgrade.sh`, exactly as before.
 - **Capability plugins** — versioned, natively updatable payload from a marketplace we own: [**groundnuty/agentic-plugins**](https://github.com/groundnuty/agentic-plugins).
 
 There is exactly one today.
@@ -442,8 +442,8 @@ Or, from inside a Claude Code session in the repo, run the **`/template-upgrade`
 What it does:
 
 - **Backs up** the existing `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored).
-- **Overlays** the template-owned files in place for your stamped profile + flags: `settings.json`, `skills/ agents/ hooks/ templates/ commands/`, profile rules, `refresh-skills.sh`. **Anything you added under `.claude/` is never touched** (v0.2.8+ — earlier upgraders destroyed custom files; recover from `.claude.pre-upgrade-*/`), and `.claude/CLAUDE.md` / `rules/project-conventions.md` are never overwritten (fresh template CLAUDE.md → backup as `CLAUDE.md.template-new`).
-- **Preserves** your files: `settings.local.json`, `rules/project-conventions.md`, `.claude/CLAUDE.md`, `audit.log`, `session-reports/`.
+- **Overlays** the template-owned files in place for your stamped profile + flags: `settings.json`, `skills/ agents/ hooks/ templates/ commands/`, profile rules, `refresh-skills.sh`. **Anything you added under `.claude/` is never touched** (v0.2.8+ — earlier upgraders destroyed custom files; recover from `.claude.pre-upgrade-*/`). **v0.5.0 retires `CLAUDE.md`:** your own text in `CLAUDE.md`, `.claude/CLAUDE.md` and `rules/project-conventions.md` moves into `AGENTS.md` below its managed region; each file is removed only after the move is verified, and root files are backed up first.
+- **Preserves** your files: `settings.local.json`, `CLAUDE.local.md` (private — never moved), `audit.log`, `session-reports/`, and your part of `AGENTS.md`.
 - **Installs and verifies capability plugins** (v0.3.0+) — see below.
 - **Bumps the stamp** to the new version and prints the CHANGELOG delta.
 
@@ -466,13 +466,13 @@ On a profile that declares a plugin (today: `paper`, `paper-latex`), the upgrade
 
 **Offline / no CLI:** set `ARP_SKIP_PLUGIN_INSTALL=1` to skip the step entirely. The scaffold upgrade runs normally, the commands are printed instead of executed, and — because the verify never went green — **nothing is deduped**, so your existing file copies stay in place and the repo keeps working. Run the two commands later and re-run the upgrader to complete the migration.
 
-**What the upgrade does not touch** (v0.2.8+, unchanged in v0.3.0): `.claude/CLAUDE.md`, `rules/project-conventions.md`, `settings.local.json`, `audit.log`, `session-reports/`, your live `.mcp.json`, and every custom file you added under `.claude/`.
+**What the upgrade does not touch** (v0.2.8+): `settings.local.json`, `CLAUDE.local.md`, `audit.log`, `session-reports/`, your live `.mcp.json`, every custom file you added under `.claude/`, and everything below the managed region of `AGENTS.md`. It **moves** (v0.5.0) your text out of `CLAUDE.md`-family files into `AGENTS.md`, and deletes a migrated rule only when it was placed there and carries no edits of yours (v0.4.12).
 
 <details><summary>Manual flow (if you prefer to cherry-pick by hand)</summary>
 
 ```bash
 git clone https://github.com/groundnuty/agentic-repo-template.git /tmp/arp-latest
-diff -r /tmp/arp-latest/.claude .claude | less   # cherry-pick settings/rules; skip CLAUDE.md + project-conventions.md
+diff -r /tmp/arp-latest/.claude .claude | less   # cherry-pick settings/rules; your text belongs below AGENTS.md's managed region
 sed -i '' "s/^version=.*/version=vX.Y.Z/" .claude/.template-version   # re-stamp (macOS; drop '' on Linux)
 ```
 </details>

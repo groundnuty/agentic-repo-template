@@ -1,12 +1,12 @@
 ---
-description: Flush what this session learned into the files that outlive it - AGENTS.md, CLAUDE.md, project-conventions, path-scoped rules, auto-memory, checkpoint - each routed to the surface that actually holds it.
+description: Flush what this session learned into the files that outlive it - AGENTS.md, path-scoped rules, auto-memory, checkpoint - each routed to the surface that actually holds it.
 ---
 
 # /compact-prepare
 
 Run this **before context is lost** — when the `PreCompact` hook warns that
 compaction is imminent, at the end of a working session, or whenever you would
-otherwise type *"update your CLAUDE.md, memory and rules with whatever you'll
+otherwise type *"update AGENTS.md, memory and rules with whatever you'll
 need to keep working well."*
 
 Compaction compresses the conversation; it does not write anything to disk. What
@@ -34,9 +34,7 @@ category rather than padding it.
 
 | The item is… | Goes to | Why there |
 |---|---|---|
-| Guidance every agent needs, every session | `AGENTS.md`, **below** `<!-- END template-managed -->` | Read by Claude Code (via the `@AGENTS.md` import), Codex and OpenCode alike |
-| A Claude-Code-only instruction | `CLAUDE.md`, below the import line | The other harnesses never read this file |
-| Stack, layout, commands, do-not-touch zones | `.claude/rules/project-conventions.md` | Exists for exactly this, and upgrades never overwrite it |
+| Guidance every agent needs, every session — including stack, commands, layout and do-not-touch zones | `AGENTS.md`, **below** `<!-- END template-managed -->`, in its matching section | The only instruction file: Claude Code, Codex and OpenCode all read it natively, and upgrades never touch that part |
 | Only relevant to certain files | a path-scoped rule in `.claude/rules/` with `paths:` frontmatter | Loads only when those files are touched; costs nothing otherwise |
 | A machine-local preference or learning | auto-memory (`/memory`) | Never syncs, never commits — right for "on this machine, X" |
 | Where-am-I / what-is-next | run `/checkpoint` | A committed artifact that travels to other machines and collaborators |
@@ -47,6 +45,9 @@ Two rules that matter more than the table:
 - **Never write inside the template-managed fence in `AGENTS.md`.** The next
   upgrade regenerates that region and your text vanishes. Everything you add goes
   *below* `<!-- END template-managed -->`.
+- **Never create a `CLAUDE.md`.** This repo has none on purpose: Claude Code reads
+  `AGENTS.md` natively only while no `CLAUDE.md`-family file exists, so a new one
+  silently hides every instruction in `AGENTS.md`.
 - **Prefer the narrowest surface that works.** A fact that only matters when
   editing `*.tex` belongs in a path-scoped rule, not in the always-on corpus that
   every session in every harness pays for.

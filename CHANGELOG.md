@@ -6,6 +6,25 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.0] — 2026-09-23
+
+**BREAKING — `CLAUDE.md` is retired. `AGENTS.md` is the only instruction file.** Claude Code 2.1.277+, Codex and OpenCode all read it natively. **Requires Claude Code 2.1.277** — an older version sees no project instructions at all (init and upgrade say so).
+
+**Why none at all.** Claude Code reads `AGENTS.md` natively only while *no* `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists at or above the working directory. Verified live on 2.1.280 with a sentinel and zero tool calls: with a stray `CLAUDE.md` present, Claude answered "UNKNOWN"; without one, it answered from `AGENTS.md`. So the template ships none, and the old `@AGENTS.md` import shim goes too.
+
+**New repos.** `AGENTS.md` holds a template-managed region — the always-on rules **and each profile's guidance** (the old `CLAUDE.append.md` text, which used to live only in `.claude/CLAUDE.md` where Codex and OpenCode never saw it) — and below it a project skeleton (overview, build/test/run, conventions, do-not-touch zones) that replaces `.claude/CLAUDE.md` and `rules/project-conventions.md`. A project's own root `CLAUDE.md` found at init is **moved** into `AGENTS.md`, never overwritten (init used to overwrite a root `CLAUDE.md` that lacked the import).
+
+**Upgrades.** Your own text in `CLAUDE.md`, `.claude/CLAUDE.md` and `rules/project-conventions.md` moves into `AGENTS.md` below the managed region, and each file is removed only after a conservation check proves every line you wrote is there. Template boilerplate is told apart from your text by an exact match against every line the template has ever shipped (`template-lines.txt`, generated from git history). Root `AGENTS.md` and `CLAUDE.md` are backed up first. Measured on copies of four real repos — a hand-written 200-line root `CLAUDE.md`, a 332-line edited `.claude/CLAUDE.md`, a 658-line `project-conventions.md`, an unfenced `AGENTS.md` — with an independent re-check: **0 lines lost** in any of them.
+
+- **Your own `AGENTS.md`** (no template fences) now gets the managed region **above** your text, which stays byte-for-byte below it. A **symlinked** `AGENTS.md` is never written through; its rules stay put.
+- A `CLAUDE.md` that is a symlink to `AGENTS.md` (Anthropic's documented workaround) is simply removed. **`CLAUDE.local.md` is never touched** — it is private — but its presence stops native reading, and you are told how to fix that.
+- **Codex reads only 32 KiB of `AGENTS.md` by default** (`project_doc_max_bytes`, confirmed in Codex's source) and drops the rest silently — which is *your* text, below the managed region. Init and upgrade warn above 32 KiB with the one-line fix. Three of the four measured repos were over it.
+- Text moved out of an old `.claude/CLAUDE.md` that still lists retired rule files is flagged (`STALE DOC`), not edited — it is yours.
+
+**Also in this release: a much better git-guard hook.** Ported, not adopted, from pedrohcgs v2.5.1's rewrite: shell-aware parsing instead of raw regex. On a 150-case suite it goes **87/139 → 139/139**; on 60,681 real Bash commands replayed from transcripts it blocks no harmless command, catches six destructive ones the old hook missed (`git reset -q --hard`, `git commit … --no-verify`, `git checkout <sha> -- .`), and — unlike upstream's rewrite — still catches `bash -c`, `eval` and `cat <<EOF | bash`. It remains opt-in. `tests/test-git-guardrails.sh` ships with it.
+
+---
+
 ## [v0.4.12] — 2026-09-23
 
 **Upgrades no longer delete rules they have not placed. If you upgraded a repo whose `AGENTS.md` had no template fence, check it.**
