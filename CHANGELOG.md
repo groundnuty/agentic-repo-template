@@ -6,6 +6,17 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.4.11] — 2026-09-23
+
+A second audit of everything the template takes from the internet (D57).
+
+- **Sixteen deny rules for destructive git spellings the old list missed.** A default install relies on `permissions.deny` alone (the git-guard hook is opt-in), and that list let through `git clean -xdf`, `-dxf` and `-d -f`, `git checkout .`, `git reset HEAD~1 --hard`, `git restore --staged --worktree .` and `-SW .`, `git push origin +main`, and `git -C x reset --hard`. Verified live through `claude -p` on Claude Code 2.1.280: every one is refused, while `git restore --staged .`, `git clean -n` and `git reset --soft` still run. `tests/test-deny-live.sh` repeats that check (`ARP_DENY_TESTS=1`).
+- **MCP pins updated, and one that never worked fixed.** The prometheus entry pointed at `:v1.6.1`, but the registry publishes tags without the `v` — uncommenting it has always failed at `docker pull`. Now `:1.6.2`. Also: arxiv-mcp-server 0.7.2, mcp-dblp 1.4.1, mcp-server-fetch 2026.8.18, dbhub 1.3.1, kubernetes-mcp-server 0.0.67, openalex-mcp-server 0.7.15 — each confirmed to answer an MCP handshake at the new version with the exact arguments shipped. zotero now names a pinned install, `zotero-mcp-server==0.13.0` (an unrelated project uses a near-identical name). A new gated test (`ARP_NETWORK_TESTS=1`) checks that every pin resolves.
+- **Content taken from pedrohcgs v2.5.1:** the checkpoint skill now records work still running in the background (a checkpoint that omits a running job orphans it); `permission-check` can no longer edit or write files; the PDF rule gains a many-documents section (one *fresh* subagent per document, not a fork); a DiD-specific prior in the journal-profile template is generalized.
+- `/agentic-paper:humanizer` is now v3.0.0 (via `agentic-paper` 1.0.1).
+
+---
+
 ## [v0.4.10] — 2026-09-22
 
 From a scan of Claude Code 2.1.221–2.1.280 (research doc 16).

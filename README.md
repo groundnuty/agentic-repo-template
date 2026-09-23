@@ -174,7 +174,7 @@ Invoke via `/<name>`. The ten **⊕** rows are **not** files under `.claude/skil
 |---|---|:-:|:-:|:-:|:-:|:-:|
 | `permission-check` | pedrohcgs | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `checkpoint` | pedrohcgs — structured session handoff (state, pointers, next actions) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `/agentic-paper:humanizer` ⊕ | [blader/humanizer](https://github.com/blader/humanizer) v2.9.1, byte-identical, MIT | — | — | ✓ | ✓ | — |
+| `/agentic-paper:humanizer` ⊕ | [blader/humanizer](https://github.com/blader/humanizer) v3.0.0, byte-identical, MIT | — | — | ✓ | ✓ | — |
 | `/agentic-paper:analyze-paper` ⊕ | local (generalized from a ccgrid2026 paper repo) | — | — | ✓ | ✓ | — |
 | `/agentic-paper:verify-claims` ⊕ | [pedrohcgs](https://github.com/pedrohcgs/claude-code-my-workflow) — CoVe via forked subagent | — | — | ✓ | ✓ | — |
 | `/agentic-paper:respond-to-referees` ⊕ | pedrohcgs — R&R response letter generator (ships its own output template) | — | — | ✓ | ✓ | — |

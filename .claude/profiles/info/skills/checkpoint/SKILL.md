@@ -32,6 +32,9 @@ Read these in order. If a source is missing, record `(none on disk)` rather than
 1. **Git state** — `git branch --show-current`, `git status -s`, `git log --oneline -10`, `git diff --stat HEAD`. Capture the branch, uncommitted file count, recent subjects, and files touched this session.
 2. **Latest session log** — `ls -t .claude/session-reports/session_logs/*.md 2>/dev/null | head -1`. Pull its open questions, blockers, and next steps.
 3. **Active plan or spec** — whatever this repo keeps on disk (e.g. `docs/plans/`, per `.claude/rules/pr-discipline.md`). Pull its status, files-to-modify list, and open questions.
+4. **In-flight background work** — anything this session started and did *not* wait for: a background Bash command, a background subagent, a long compile or render, a review still out with another model. For each, note what is running, where its output lands, the command that checks on it, and what ends it.
+
+A checkpoint that omits a running job orphans it: the next session sees no trace of the work, its output lands where nobody is looking, and the job is either redone from scratch or quietly abandoned.
 
 ## Phase 2 — Write the checkpoint
 
@@ -57,6 +60,12 @@ plan: <path, or (none)>
 ## File pointers
 <3-8 concrete `path:line` references marking where the next session resumes, each with a note:>
 - `path/to/file.ext:142` — half-written handler, error branch missing
+
+## In flight
+<Jobs still running that this session did not wait for, one row each. Write (none) if nothing is running — an empty section reads as an oversight.>
+| What is running | Output lands in | Check with | Ends when |
+|---|---|---|---|
+| full test suite, backgrounded | `/tmp/suite.log` | `tail -3 /tmp/suite.log` | a `Passed:` line appears |
 
 ## Decisions made
 <2-5 bullets on why the work took the shape it did — what the diff does not explain. Omit if there were none.>
