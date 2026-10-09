@@ -3,7 +3,7 @@
 # Session Logging
 
 **Location:** `.claude/session-reports/session_logs/YYYY-MM-DD_description.md`
-**Template:** `templates/session-log.md`
+**Template:** `.claude/templates/session-log.md`
 
 Native auto-memory handles cross-session continuity automatically and is machine-local; the session log exists because it is committed — the repo-visible record of autonomous work.
 
@@ -19,9 +19,9 @@ Append 1-3 lines whenever: a design decision is made, a problem is solved, the u
 
 ### 3. End-of-Session Log
 
-When wrapping up: high-level summary, quality scores, open questions, blockers.
+When wrapping up: high-level summary, open questions, blockers.
 
 ## Quality Reports
 
 Generated **only at merge time** -- not at every commit or PR.
-Save to `.claude/session-reports/merges/YYYY-MM-DD_[branch-name].md` using `templates/quality-report.md`.
+Save to `.claude/session-reports/merges/YYYY-MM-DD_[branch-name].md` using `.claude/templates/quality-report.md`.

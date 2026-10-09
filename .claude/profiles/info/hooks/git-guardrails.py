@@ -34,8 +34,13 @@ Enable by referencing it from `.claude/settings.local.json`:
     {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
         {"type": "command", "command": "python3 .claude/hooks/git-guardrails.py"}]}]}}
 
-Fails OPEN: any error exits 0 with no decision, so a broken hook never wedges
-the session. A command it cannot parse (unbalanced quotes) gets the previous
+To make the guard fail CLOSED when it cannot run at all (python3 missing, a
+timeout), add `"onFailure": "block"` beside "command" (Claude Code 2.1.295+;
+older versions ignore the key — verified on 2.1.252). The cost: with no python3
+on PATH, every Bash command is then blocked until you fix it.
+
+Fails OPEN inside: any error exits 0 with no decision, so a bug in the parser
+never wedges the session. A command it cannot parse (unbalanced quotes) gets the previous
 regex rules instead. Python 3.8+, stdlib only.
 
 Adapted from pedrohcgs/claude-code-my-workflow (MIT),

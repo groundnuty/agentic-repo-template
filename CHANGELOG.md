@@ -6,6 +6,24 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.1] — 2026-10-09
+
+From a scan of Claude Code 2.1.281–2.1.296 (research doc 17).
+
+- **The paper suite's deep-review skills run at your effort again.** `/seven-pass-review`, `/respond-to-referees` and `/audit-reproducibility` pinned `effort: high`, and a skill's `effort` *overrides* the session level — so in a template repo running at `xhigh` they thought less, not more. Removed (via `agentic-paper` 1.0.2); a plugin test now fails on any skill or agent that pins effort or a model.
+- **`pr-discipline` no longer claims a setting that does not exist.** It said a user-global setting strips `Co-Authored-By`; no such setting was present. The rule itself — no attribution footer — is unchanged, and since Claude Code 2.1.269 it takes precedence over the attribution reminder.
+- **Never `"attribution": false` in a shared settings file.** Claude Code 2.1.281 added that shortcut, but older versions reject it and skip the *whole* settings file — deny list included. Verified on 2.1.252. A test now fails if any shipped settings use it.
+- **The opt-in git guard documents `"onFailure": "block"`** (Claude Code 2.1.295+): it makes the guard fail closed when it cannot start. Older versions ignore the key (verified on 2.1.252).
+- **README:** the first-session gap in native `AGENTS.md` reading now applies only when upgrading from Claude Code 2.1.276 or earlier, not after every upgrade.
+- **Instructions that pointed nowhere, found by Claude Code's new `/doctor prompt-audit`.** When v0.4/v0.5 folded rule files into the root `AGENTS.md`, paths written relative to `.claude/` (`templates/session-log.md`, `hooks/notify.sh`, …) stopped resolving, and several pointers still named rule files that no longer exist. Fixed throughout, plus:
+  - `AGENTS.md` contradicted itself on which agents see project memory;
+  - the journal-profile instruction named the template rather than `.claude/references/journal-profiles.md`, the file the editor actually reads — filling it in as written changed nothing;
+  - three different instructions answered the same PreCompact warning, one of them `/session-report`, which is now Anthropic's usage-analytics plugin of that name. All three now say `/compact-prepare`, and it asks you to run `/checkpoint` instead of trying to (only you can invoke it);
+  - a stale WebSearch cap (the budget refills since Claude Code 2.1.290), two bare `MUST`s, an undefined 0–100 quality score, a `/tmp` path outside the sandbox, and a "Two rules" heading over three.
+  A new test checks, for every profile, that every path named in a shipped instruction file resolves after init. It catches these defects on v0.5.0.
+
+---
+
 ## [v0.5.0] — 2026-09-23
 
 **BREAKING — `CLAUDE.md` is retired. `AGENTS.md` is the only instruction file.** Claude Code 2.1.277+, Codex and OpenCode all read it natively. **Requires Claude Code 2.1.277** — an older version sees no project instructions at all (init and upgrade say so).

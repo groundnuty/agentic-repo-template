@@ -14,7 +14,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`
 
 - **Why, not what.** The diff shows what changed. The message explains why.
 - **Reference spec / plan sections when applicable** — e.g., `(per Task 5 in docs/plans/<plan>)`.
-- **No attribution footer.** User-global setting strips Co-Authored-By automatically.
+- **No attribution footer.** Leave out `Co-Authored-By` and "Generated with" lines; this rule takes precedence over Claude Code's attribution reminder.
 
 ## When to open a PR
 

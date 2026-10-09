@@ -22,8 +22,8 @@ Three mechanisms look interchangeable; only one of them travels. **Auto-memory**
 
 ## When not to use
 
-- For the narrative of the session — that is the session log (`.claude/rules/session-logging.md`, template `.claude/templates/session-log.md`). The checkpoint links to the latest log by path; it does not retell it.
-- As a substitute for committing. Uncommitted work is still lost work: commit the work, then checkpoint, then commit the checkpoint. See `.claude/rules/autonomous-work.md`.
+- For the narrative of the session — that is the session log (the "Session Logging" section of `AGENTS.md`, template `.claude/templates/session-log.md`). The checkpoint links to the latest log by path; it does not retell it.
+- As a substitute for committing. Uncommitted work is still lost work: commit the work, then checkpoint, then commit the checkpoint. See the "Autonomous-work rules" section of `AGENTS.md`.
 
 ## Phase 1 — Gather state
 
@@ -31,7 +31,7 @@ Read these in order. If a source is missing, record `(none on disk)` rather than
 
 1. **Git state** — `git branch --show-current`, `git status -s`, `git log --oneline -10`, `git diff --stat HEAD`. Capture the branch, uncommitted file count, recent subjects, and files touched this session.
 2. **Latest session log** — `ls -t .claude/session-reports/session_logs/*.md 2>/dev/null | head -1`. Pull its open questions, blockers, and next steps.
-3. **Active plan or spec** — whatever this repo keeps on disk (e.g. `docs/plans/`, per `.claude/rules/pr-discipline.md`). Pull its status, files-to-modify list, and open questions.
+3. **Active plan or spec** — whatever this repo keeps on disk (e.g. `docs/plans/`, per the "PR discipline" section of `AGENTS.md`). Pull its status, files-to-modify list, and open questions.
 4. **In-flight background work** — anything this session started and did *not* wait for: a background Bash command, a background subagent, a long compile or render, a review still out with another model. For each, note what is running, where its output lands, the command that checks on it, and what ends it.
 
 A checkpoint that omits a running job orphans it: the next session sees no trace of the work, its output lands where nobody is looking, and the job is either redone from scratch or quietly abandoned.
@@ -80,7 +80,7 @@ plan: <path, or (none)>
 > Resuming from `.claude/session-reports/<filename>`. Read it, then start at action 1.
 ```
 
-Cap the file at ~80 lines. If the state does not fit, the plan file is the right home for the detail — the checkpoint is a thin index pointing at it.
+Keep it short enough to read at a glance. If the state does not fit, the plan file is the right home for the detail — the checkpoint is a thin index pointing at it.
 
 ## Phase 3 — Report
 

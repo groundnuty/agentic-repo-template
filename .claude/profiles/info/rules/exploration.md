@@ -7,7 +7,7 @@ paths:
 
 # Explorations
 
-**Experimental work goes into `explorations/` first, never straight into a production directory.** The point of the folder is a lower bar: exploration code is held to roughly 60/100, production to 80+. No plan needed; full docs and full test coverage not needed. What must hold is that the code runs, the results are correct, and the goal is written down.
+**Experimental work goes into `explorations/` first, never straight into a production directory.** The point of the folder is a lower bar: exploration code is held to a lower bar than production. No plan needed; full docs and full test coverage not needed. What must hold is that the code runs, the results are correct, and the goal is written down.
 
 ## Layout
 
@@ -30,7 +30,7 @@ Create the folder plus a README from `.claude/templates/exploration-readme.md`, 
 
 Before building, ask whether it improves the project. If not, don't build it. Then work entirely inside the exploration folder until one of three exits:
 
-- **Graduate** — quality ≥ 80, tests pass, results replicate within tolerance, code readable without deep context, README explains approach and findings. Copy into the production tree, then move the exploration to `ARCHIVE/completed_[project]/`.
+- **Graduate** — tests pass, results replicate within tolerance, code readable without deep context, README explains approach and findings. Copy into the production tree, then move the exploration to `ARCHIVE/completed_[project]/`.
 - **Keep exploring** — record next steps in the README.
 - **Archive** — move to `ARCHIVE/abandoned_[project]/` with an explanation written from `.claude/templates/archive-readme.md`.
 

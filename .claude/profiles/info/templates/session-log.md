@@ -9,9 +9,9 @@
 
 ## Changes Made
 
-| File | Change | Reason | Quality Score |
-|------|--------|--------|---|
-| `path/to/file` | [What changed] | [Why] | [N]/100 |
+| File | Change | Reason |
+|------|--------|--------|
+| `path/to/file` | [What changed] | [Why] |
 
 ## Design Decisions
 

@@ -11,8 +11,8 @@ Upgrade the current repo to the latest [agentic-repo-template](https://github.co
 1. **Preview first.** Fetch the upgrader and run a dry-run so you can see the version jump, the CHANGELOG delta, and any custom `settings.json` entries before anything changes:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o /tmp/arp-upgrade.sh
-   bash /tmp/arp-upgrade.sh --dry-run
+   curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/upgrade.sh -o "${TMPDIR:-/tmp}/arp-upgrade.sh"
+   bash "${TMPDIR:-/tmp}/arp-upgrade.sh" --dry-run
    ```
 
    If it reports "Already up to date," stop — there's nothing to do.
@@ -20,10 +20,10 @@ Upgrade the current repo to the latest [agentic-repo-template](https://github.co
 2. **Apply the upgrade:**
 
    ```bash
-   bash /tmp/arp-upgrade.sh
+   bash "${TMPDIR:-/tmp}/arp-upgrade.sh"
    ```
 
-   This backs up `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored), then **overlays** template-owned files in place for this repo's stamped profile + flags. Never touched: **any custom file you added** (rules, scripts, hooks, `.macf/`, …), `settings.local.json`, `CLAUDE.local.md`. From v0.5.0 there is no `CLAUDE.md`: your own text in `CLAUDE.md`, `.claude/CLAUDE.md` and `rules/project-conventions.md` is **moved** into `AGENTS.md` below its template-managed region, each file removed only after the move is verified (originals in the backup). A migrated rule is deleted only if it was placed in `AGENTS.md` and carries no edits of yours. Deliberately-removed template files are deleted per `removed-files.txt`. Root `.example` files regenerate; your live `.mcp.json` is never touched. The stamp is bumped.
+   This backs up `.claude/` → `.claude.pre-upgrade-<oldversion>/` (gitignored), then **overlays** template-owned files in place for this repo's stamped profile + flags. Never touched: **any custom file you added** (rules, scripts, hooks, `.macf/`, …), `settings.local.json`, `CLAUDE.local.md`. From v0.5.0 there is no `CLAUDE.md`: your own text in `CLAUDE.md`, `.claude/CLAUDE.md` and `.claude/rules/project-conventions.md` is **moved** into `AGENTS.md` below its template-managed region, each file removed only after the move is verified (originals in the backup). A migrated rule is deleted only if it was placed in `AGENTS.md` and carries no edits of yours. Deliberately-removed template files are deleted per `removed-files.txt`. Root `.example` files regenerate; your live `.mcp.json` is never touched. The stamp is bumped.
 
 3. **Reconcile the settings.json report.** If the upgrader printed a "settings.json entries in your current config but not in the new template output" section, each listed entry is **either** a customization you added **or** an entry the new version intentionally removed. Decide per entry using the CHANGELOG delta the upgrader printed:
    - If an entry was **removed by the template** (mentioned in the CHANGELOG, e.g. a deprecated `Write(path)` deny) — leave it dropped.

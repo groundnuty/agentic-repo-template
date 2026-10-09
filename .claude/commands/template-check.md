@@ -57,7 +57,7 @@ Changes since v0.1.7:
   v0.1.8 — Claude Code v2.1.113 adoption (sandbox-bypass fix)
   v0.1.9 — /template-check command + version stamping
 
-To update, see README.md #upgrading.
+To update, run `/template-upgrade`.
 ```
 
 **No stamp:**
@@ -68,7 +68,7 @@ Either this repo predates agentic-repo-template v0.1.9 or was not initialized vi
 To start tracking, create the stamp manually:
   cat > .claude/.template-version <<EOF
   version=unknown
-  profile=<info|research|paper|code>
+  profile=<info|research|paper|paper-latex|code>
   applied_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   EOF
 ```

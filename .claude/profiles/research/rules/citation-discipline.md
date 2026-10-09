@@ -17,7 +17,7 @@ Applied when producing research output (reports, analyses, literature reviews).
 3. **WebSearch** with `site:scholar.google.com` or `site:arxiv.org` for preprints and conference proceedings.
 4. **WebFetch** of the specific paper URL when a reference is already known.
 
-**WebSearch is capped at 200 calls per session**, counted across all subagents, and fails *silently* past the cap — budget your fan-outs.
+**WebSearch has a shared budget** across the session and its subagents (in Claude Code 2.1.290+ it refills at about 100 calls an hour). A wide fan-out can exhaust it; budget your fan-outs.
 
 **WebFetch is lossy** — a small model answers your prompt about the page rather than handing you the page. For verbatim quotes use the fetch MCP server (if enabled) or `curl`.
 

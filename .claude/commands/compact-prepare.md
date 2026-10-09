@@ -37,10 +37,10 @@ category rather than padding it.
 | Guidance every agent needs, every session — including stack, commands, layout and do-not-touch zones | `AGENTS.md`, **below** `<!-- END template-managed -->`, in its matching section | The only instruction file: Claude Code, Codex and OpenCode all read it natively, and upgrades never touch that part |
 | Only relevant to certain files | a path-scoped rule in `.claude/rules/` with `paths:` frontmatter | Loads only when those files are touched; costs nothing otherwise |
 | A machine-local preference or learning | auto-memory (`/memory`) | Never syncs, never commits — right for "on this machine, X" |
-| Where-am-I / what-is-next | run `/checkpoint` | A committed artifact that travels to other machines and collaborators |
-| The narrative of what happened | the session log (`.claude/templates/session-log.md`) | Story, not instruction |
+| Where-am-I / what-is-next | ask the user to run `/checkpoint` (only they can invoke it) | A committed artifact that travels to other machines and collaborators |
+| The narrative of what happened | the session log in `.claude/session-reports/session_logs/` (skeleton: `.claude/templates/session-log.md`) | Story, not instruction |
 
-Two rules that matter more than the table:
+Three rules that matter more than the table:
 
 - **Never write inside the template-managed fence in `AGENTS.md`.** The next
   upgrade regenerates that region and your text vanishes. Everything you add goes

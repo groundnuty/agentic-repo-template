@@ -32,7 +32,7 @@ Everything shared goes through git — commit and push. Auto-memory is machine-l
 
 ## Session reporting
 
-- The `PreCompact` hook archives the transcript and prints a reminder to stderr. When you see it, prefer `/rewind` → "Summarize up to here" over letting compaction run blind, then `/session-report`.
+- The `PreCompact` hook archives the transcript and prints a reminder to stderr. When you see it, run `/compact-prepare` first — it writes what the session learned into the files that outlive it — then prefer `/rewind` → "Summarize up to here" over letting compaction run blind.
 - The `SessionEnd` hook captures a final git-state snapshot to `.claude/session-reports/`.
 
 ## Where the mechanics live

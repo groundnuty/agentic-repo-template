@@ -35,9 +35,11 @@
 ### Vendored skills
 **Anti-hallucination:**
 **At first init,** run `/run-skill-generator` to capture this repo's app-launch recipe as a committed skill, and `/verify` to capture its verification recipe. Both beat re-describing the same commands to every new session.
+**Auto-memory does not reach subagents** (except forks), unless a subagent's definition sets `memory: project`. Put anything a subagent needs in its prompt or in a committed file.
 **Auto-memory does not reach subagents** (except forks). Referee and verifier agents never see project memory — put anything they need in their prompt or in a committed file.
 **Auto-memory does not reach subagents** (except forks). The editor, referee, and proofreader agents carry `memory: project` so they can see it; `agentic-paper:claim-verifier` deliberately does **not**, and must stay that way — a verifier that has read the draft is not an independent check. Anything a subagent needs goes in its prompt or in a committed file.
 **Auto-memory does not reach subagents** (except forks). The editor, referee, and proofreader agents carry `memory: project` so they can see it; `claim-verifier` deliberately does **not**, and must stay that way — a verifier that has read the draft is not an independent check. Anything a subagent needs goes in its prompt or in a committed file.
+**Before `/agentic-paper:review-paper --peer`,** fill in `.claude/templates/journal-profile-template.md` for your target venue and save it as `.claude/references/journal-profiles.md` — the file the editor reads. Without it, the referees run on general norms for the venue.
 **Before `/agentic-paper:review-paper --peer`,** fill in `.claude/templates/journal-profile-template.md` for your target venue. Left blank, the referees run on generic norms.
 **Before `/review-paper --peer`,** fill in `.claude/templates/journal-profile-template.md` for your target venue. Left blank, the referees run on generic norms.
 **Bibliography + figures:**
@@ -46,7 +48,9 @@
 **Hooks (opt-in, configure in your `.claude/settings.local.json`):**
 **Language-specific reviewers are opt-in, not shipped.** Run `/configure-ecc` from the [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) plugin and pick only what your language needs; the full bundle (183 skills, 48 agents) is too heavy to enable by default.
 **Manuscript review:**
+**Opt-in hook:** `.claude/hooks/verify-reminder.py` — post-Edit reminder to recompile `.tex`/`.bib`. Enable by referencing it in `.claude/settings.local.json`.
 **Opt-in hook:** `hooks/verify-reminder.py` — post-Edit reminder to recompile `.tex`/`.bib`. Enable by referencing it in `.claude/settings.local.json`.
+**Opt-in hooks** — reference them from `.claude/settings.local.json` to activate: `.claude/hooks/notify.sh` (desktop notification on session events), `.claude/hooks/log-reminder.py` (stop-hook reminder to update the session log).
 **Opt-in hooks** — reference them from `.claude/settings.local.json` to activate: `hooks/notify.sh` (desktop notification on session events), `hooks/log-reminder.py` (stop-hook reminder to update the session log).
 **Refresh vendored skills** with `./.claude/refresh-skills.sh [name]` — it re-clones every `source: "git"` entry in `.claude/skills.manifest.json` at the pinned `ref`. Currently that is `humanizer`, pinned to `v2.9.1`.
 **Reproducibility:**
@@ -58,6 +62,7 @@
 **The paper capability ships as a plugin,** `agentic-paper@agentic-plugins`, not as files under `.claude/`. Its skills and agents are namespaced: `/agentic-paper:review-paper`, `/agentic-paper:verify-claims`, `/agentic-paper:proofread`, `/agentic-paper:seven-pass-review`, `/agentic-paper:respond-to-referees`, `/agentic-paper:audit-reproducibility`, `/agentic-paper:analyze-paper`, `/agentic-paper:humanizer`, and the agents `agentic-paper:editor` / `:domain-referee` / `:methods-referee` / `:proofreader` / `:claim-verifier`. Update it with `claude plugin update agentic-paper@agentic-plugins`. If a slash command does not resolve, the plugin is not installed for this repo — run `claude plugin marketplace add groundnuty/agentic-plugins --scope project` then `claude plugin install agentic-paper@agentic-plugins --scope project`, in this directory.
 **Toolchain:** this profile assumes [devbox](https://www.jetify.com/devbox) for toolchain management. Using Nix flakes directly, or another manager? Adapt `.claude/rules/devbox-usage.md` — the rest of the profile does not depend on it.
 **Where work lands.** Six lazily-created top-level directories: `research/` (findings), `papers/` (PDFs you fetched, plus `INDEX.md`), `input/` (what the user gave you), `insights/` (joint conclusions), `deliverables/` (external-facing output), `questions/` (open, living). Full contract in `.claude/rules/knowledge-work-structure.md`.
+**Where work lands.** Six lazily-created top-level directories: `research/` (findings), `papers/` (PDFs you fetched, plus `INDEX.md`), `input/` (what the user gave you), `insights/` (joint conclusions), `deliverables/` (external-facing output), `questions/` (open, living). Full contract under "Knowledge-work directory structure" in this file.
 - From the `info` chain: `writing-quality.md`. From `research`: `citation-discipline.md`, `reading-before-editing.md`, `pdf-processing.md`.
 - `.claude/rules/*.md` — path-scoped rules; they load only when you touch
 - `.claude/settings.json` — permissions, sandbox, hooks, plugin declaration.

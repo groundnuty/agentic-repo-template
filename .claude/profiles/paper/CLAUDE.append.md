@@ -8,6 +8,6 @@ Academic manuscript work — literature review, prose polishing, structured peer
 
 **Auto-memory does not reach subagents** (except forks). The editor, referee, and proofreader agents carry `memory: project` so they can see it; `agentic-paper:claim-verifier` deliberately does **not**, and must stay that way — a verifier that has read the draft is not an independent check. Anything a subagent needs goes in its prompt or in a committed file.
 
-**Before `/agentic-paper:review-paper --peer`,** fill in `.claude/templates/journal-profile-template.md` for your target venue. Left blank, the referees run on generic norms.
+**Before `/agentic-paper:review-paper --peer`,** fill in `.claude/templates/journal-profile-template.md` for your target venue and save it as `.claude/references/journal-profiles.md` — the file the editor reads. Without it, the referees run on general norms for the venue.
 
-**Opt-in hooks** — reference them from `.claude/settings.local.json` to activate: `hooks/notify.sh` (desktop notification on session events), `hooks/log-reminder.py` (stop-hook reminder to update the session log).
+**Opt-in hooks** — reference them from `.claude/settings.local.json` to activate: `.claude/hooks/notify.sh` (desktop notification on session events), `.claude/hooks/log-reminder.py` (stop-hook reminder to update the session log).

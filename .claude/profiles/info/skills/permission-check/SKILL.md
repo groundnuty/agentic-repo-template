@@ -96,11 +96,11 @@ The resolved `defaultMode` is the value from the highest-precedence layer that s
 
 ### Step 3: Report runtime mode
 
-The live in-session mode is exposed via the status line (see `.claude/scripts/statusline.sh`). Tell the user:
+The live in-session mode shows in Claude Code's own footer ("auto mode on", "plan mode on", …) and in `/status`. Tell the user:
 
 > "Your status line shows the current in-session mode in the top-right of the Claude Code panel. If that disagrees with the resolved `defaultMode` above, you (or Shift+Tab) overrode it mid-session. Press Shift+Tab to cycle back."
 
-If the status line isn't configured, emit a warning and point at `.claude/scripts/statusline.sh`.
+If they need it in a custom status line, point them at `/statusline`.
 
 ### Step 4: Flag common failure modes
 
