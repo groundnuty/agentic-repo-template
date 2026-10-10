@@ -6,6 +6,13 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.2] — 2026-10-10
+
+- **Commits keep their attribution.** The `pr-discipline` rule said "No attribution footer", and since Claude Code 2.1.269 a project rule against attribution takes precedence over Claude Code's reminder — so every template repo was silently dropping the `Co-Authored-By` trailer. Attribution is now kept on purpose: it records which changes an agent wrote, so a repository's history shows provenance. Nothing in settings changes; attribution is Claude Code's default. A test fails if the rule or any shipped settings strip it again.
+- **Correction to v0.5.0's notes on the git-guard hook.** They said a replay of real Bash commands showed it blocks no harmless command. That was not checked command by command. It does block one harmless kind: a heredoc fed to an interpreter such as `python3 - <<'PY'` whose text mentions a destructive git command in backticks — for example a script that writes documentation about `git reset --hard`. The hook remains opt-in.
+
+---
+
 ## [v0.5.1] — 2026-10-09
 
 From a scan of Claude Code 2.1.281–2.1.296 (research doc 17).

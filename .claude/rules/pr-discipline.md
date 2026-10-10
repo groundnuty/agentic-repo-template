@@ -14,7 +14,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`
 
 - **Why, not what.** The diff shows what changed. The message explains why.
 - **Reference spec / plan sections when applicable** — e.g., `(per Task 5 in docs/plans/<plan>)`.
-- **No attribution footer.** Leave out `Co-Authored-By` and "Generated with" lines; this rule takes precedence over Claude Code's attribution reminder.
+- **Keep the attribution.** Leave the `Co-Authored-By` trailer Claude Code adds to commits, and its note on pull requests: they record which changes an agent wrote, so the history shows provenance.
 
 ## When to open a PR
 
