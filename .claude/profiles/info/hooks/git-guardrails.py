@@ -22,7 +22,10 @@ flags are tested as a set wherever they sit (`git reset HEAD~1 --hard`). What a
 shell will run is read too: `sh -c`, `eval`, `env -S`, `ssh HOST CMD`, $(…),
 `…`, output piped into a shell, and heredoc input. A heredoc body counts as
 data only when its output provably lands in a file (`cat > f <<EOF`), a git
-command, or a $(…) argument (`git commit -m "$(cat <<'EOF' … EOF)"`).
+command, a $(…) argument (`git commit -m "$(cat <<'EOF' … EOF)"`), or a
+non-shell interpreter (`python3 - <<'PY'`) — though $(…) in an unquoted body
+still runs in the shell first, and interpreter output piped into a shell is
+checked with the substring rules.
 
 Not covered: git or a flag spelled via a variable (`$G reset --hard`), flags on
 stdin (`xargs git reset`), aliases, other languages (`python3 -c`), a script
@@ -314,6 +317,9 @@ def _lex(s, i=0, closer="", depth=0):
 # ── what a command line will run ────────────────────────────────────────────
 
 _SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "mksh", "fish"}
+# Interpreters whose input is their own language, not shell: a heredoc they read
+# is data, as `python3 -c '…'` already is (see "Not covered" above).
+_INTERP = re.compile(r"^(python[\d.]*|node|nodejs|deno|bun|ruby|perl|php|jq|yq|awk|gawk|sed)$")
 _DASH_C = _SHELLS | {"su", "runuser", "flock", "script"}   # run the string after -c
 _ARG_RUNNERS = {"eval", "ssh", "watch", "parallel", "tmux"}  # run their argument text
 _ASSIGN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
@@ -403,9 +409,16 @@ def _check(cmds, depth, out=None):
             data = shell is None and j != prog and (
                 quoted or _ASSIGN.match(c.words[j] if j < len(c.words) else "x="))
             why = why or _check(sub, depth + 1, "data" if data else "run")
+        names = [os.path.basename(w).lower() for w in c.words]
+        interp = shell is None and any(_INTERP.match(n) for n in names) and not any(n in _SHELLS for n in names)
         for body, live, unterminated in c.stdin:
+            if interp and (runs or c.piped):
+                # `python3 - <<'PY' | sh`: what it prints is run, and we cannot
+                # know what it prints — fall back to the substring rules.
+                why = why or _legacy(body)
+                continue
             inert = (shell is None and not runs and not c.piped and not unterminated
-                     and (out == "data" or c.to_file or _tee_to_file(c.words)
+                     and (out == "data" or c.to_file or _tee_to_file(c.words) or interp
                           or any(True for _ in _git_calls(c.words))))
             why = why or ((live and _live(body, depth)) if inert else _scan(body, depth + 1))
         if why:

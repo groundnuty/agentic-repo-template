@@ -6,6 +6,14 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.3] — 2026-10-10
+
+- **Nine deny rules for destructive git spellings found in real use.** A replay of 64,418 Bash commands from real sessions found three gaps in the deny list: discarding every change from a ref or with output redirected (`git checkout HEAD -- .`, `git checkout -- . 2>&1`), `--no-verify` at the end of a commit (`git commit -m "…" --no-verify`), and force push behind a global option (`git -c … push --force`). Verified live through `claude -p`: all eight new destructive spellings are refused, while restoring a single file (`git checkout HEAD -- a.txt`) and `git -c … commit` still run. After this the deny list covers every real destructive command in the replay.
+- **The git-guard hook stays opt-in** (D61). Measured: over 90% of what it would add by default is blocking `git add -A`. Turn it on per repo if you want that.
+- **Fixed in the opt-in hook:** a heredoc read by a non-shell interpreter (`python3 - <<'PY'`) whose text mentions a destructive git command in backticks is no longer refused — the text is data, as with `python3 -c`. `$(…)` in an unquoted heredoc still counts (the shell runs it first), and interpreter output piped into a shell is still checked.
+
+---
+
 ## [v0.5.2] — 2026-10-10
 
 - **Commits keep their attribution.** The `pr-discipline` rule said "No attribution footer", and since Claude Code 2.1.269 a project rule against attribution takes precedence over Claude Code's reminder — so every template repo was silently dropping the `Co-Authored-By` trailer. Attribution is now kept on purpose: it records which changes an agent wrote, so a repository's history shows provenance. Nothing in settings changes; attribution is Claude Code's default. A test fails if the rule or any shipped settings strip it again.
