@@ -2,7 +2,7 @@
 
 ## Profile: research
 
-Information + technical research — reading documentation, analyzing code, evaluating tools. Layers on `info`. No code writing.
+Information + technical research — reading documentation, analyzing code, evaluating tools. Layers on `info`.
 
 **Where work lands.** Six lazily-created top-level directories: `research/` (findings), `papers/` (PDFs you fetched, plus `INDEX.md`), `input/` (what the user gave you), `insights/` (joint conclusions), `deliverables/` (external-facing output), `questions/` (open, living). Full contract under "Knowledge-work directory structure" in this file.
 

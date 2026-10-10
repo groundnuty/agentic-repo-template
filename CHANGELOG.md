@@ -6,6 +6,20 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.4] — 2026-10-10
+
+From a review of everything the template ships against Anthropic's current prompting guides for the Claude 5.5 models and the skill-authoring guide (research doc 18).
+
+- **No contradictions in the always-on text.** The info profile said "No code." and the research profile "No code writing" — and both reach the `code` profile ("writing and refactoring code") and `paper-latex` (TikZ). Contradictory instructions make the model deliberate over the conflict. They now describe scope instead of forbidding.
+- **`permission-check` diagnoses with the current rules.** It modelled a six-layer stack in which `bypassPermissions` set in project settings wins; since Claude Code 2.1.257 `auto` and `bypassPermissions` in `.claude/settings*.json` don't take effect, managed settings and `--permission-mode` rank above files, and the VS Code extension never reads project settings for its starting mode. Its "ignored value" check is now failure mode 1.
+- **The PreCompact warning says `/compact-prepare`.** It still said `/session-report` — now an unrelated usage-analytics plugin. (v0.5.1 fixed the three instruction files but missed the hook's own message.)
+- **`/template-upgrade` is user-invoked only**, since it downloads and runs a script, and each step now downloads and runs in one command (`$TMPDIR` can differ between sandboxed and unsandboxed calls).
+- **`/deep-research` is suggested, not run.** The research rules called it the model's default entry; since Claude Code 2.1.218 only the user can start it.
+- **One-hour prompt cache** (`promptCacheTtl`, `subagentPromptCacheTtl` = `"1h"`). Subagents often wait on long commands past five minutes and lose a 5-minute cache; the operator's 30-day analysis puts the saving near 10% at API prices. A one-hour cache write costs more per write, and on a subscription `promptCacheTtl` changes nothing.
+- The paper profile's note on agent memory now matches `agentic-paper` 1.0.3, whose agents no longer set `memory:`.
+
+---
+
 ## [v0.5.3] — 2026-10-10
 
 - **Nine deny rules for destructive git spellings found in real use.** A replay of 64,418 Bash commands from real sessions found three gaps in the deny list: discarding every change from a ref or with output redirected (`git checkout HEAD -- .`, `git checkout -- . 2>&1`), `--no-verify` at the end of a commit (`git commit -m "…" --no-verify`), and force push behind a global option (`git -c … push --force`). Verified live through `claude -p`: all eight new destructive spellings are refused, while restoring a single file (`git checkout HEAD -- a.txt`) and `git -c … commit` still run. After this the deny list covers every real destructive command in the replay.

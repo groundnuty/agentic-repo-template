@@ -47,7 +47,7 @@
       {
         "hooks": [
           {
-            "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); [ -n \"$CLAUDE_TRANSCRIPT_PATH\" ] && cp \"$CLAUDE_TRANSCRIPT_PATH\" \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-transcript.jsonl\" 2>/dev/null; { echo \"# Pre-compact $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-gitstate.md\"; echo \"[PreCompact] Context compaction imminent. Transcript archived at .claude/session-reports/${TS}-precompact-transcript.jsonl - run /session-report for a narrative summary before history is compressed.\" >&2'",
+            "command": "sh -c 'mkdir -p \"$CLAUDE_PROJECT_DIR/.claude/session-reports\"; TS=$(date -u +%Y%m%dT%H%M%SZ); [ -n \"$CLAUDE_TRANSCRIPT_PATH\" ] && cp \"$CLAUDE_TRANSCRIPT_PATH\" \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-transcript.jsonl\" 2>/dev/null; { echo \"# Pre-compact $TS\"; git -C \"$CLAUDE_PROJECT_DIR\" status -sb; echo; git -C \"$CLAUDE_PROJECT_DIR\" log --oneline -10; } > \"$CLAUDE_PROJECT_DIR/.claude/session-reports/${TS}-precompact-gitstate.md\"; echo \"[PreCompact] Context compaction imminent. Transcript archived at .claude/session-reports/${TS}-precompact-transcript.jsonl - run /compact-prepare to save what this session learned before history is compressed.\" >&2'",
             "timeout": 30000,
             "type": "command"
           }
@@ -196,6 +196,7 @@
       "mcp__papers__download_with_fallback"
     ]
   },
+  "promptCacheTtl": "1h",
   "sandbox": {
     "allowUnsandboxedCommands": true,
     "autoAllowBashIfSandboxed": true,
@@ -291,5 +292,6 @@
       "deniedDomains": []
     }
   },
+  "subagentPromptCacheTtl": "1h",
   "verbose": true
 }

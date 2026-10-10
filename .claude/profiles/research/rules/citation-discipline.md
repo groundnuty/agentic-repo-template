@@ -12,7 +12,7 @@ Applied when producing research output (reports, analyses, literature reviews).
 
 ## Search tools, in priority order
 
-1. **`/deep-research <question>`** — the default entry for broad questions with unknown sources (native fan-out plus per-claim verification; unverifiable claims report as unverified).
+1. **`/deep-research <question>`** — for broad questions with unknown sources, suggest the user run it (only the user can start it) (native fan-out plus per-claim verification; unverifiable claims report as unverified).
 2. **Scholar Gateway** (MCP) for journal papers in the indexed corpus.
 3. **WebSearch** with `site:scholar.google.com` or `site:arxiv.org` for preprints and conference proceedings.
 4. **WebFetch** of the specific paper URL when a reference is already known.

@@ -1,6 +1,6 @@
 ---
 name: permission-check
-description: Diagnose why Claude Code is (or isn't) prompting for permission. By default reads only repo-local layers (CLI project, CLI project-local, VSCode workspace). Host-global layers (CLI user `~/.claude/`, VSCode user settings) are read ONLY when the user explicitly confirms — those files may contain unrelated paths or secrets. Use when user says "why is it asking me to approve?", "permission check", "why am I getting prompts?", "bypass isn't working", "check my permissions". Read-only diagnostic.
+description: Diagnose why Claude Code is or isn't asking for permission — which permission mode the session started in, where it came from, and which allow/deny rules apply. Use when the user asks why they are being prompted, why bypass or auto mode isn't taking effect, or to check their permissions. Read-only; reads files outside the repo only after the user agrees.
 argument-hint: "(no arguments)"
 allowed-tools: ["Read", "Bash", "Glob"]
 disallowed-tools: ["Edit", "Write", "MultiEdit"]
@@ -13,18 +13,23 @@ disallowed-tools: ["Edit", "Write", "MultiEdit"]
 
 ## Purpose
 
-Surface the full permission-mode picture across every layer Claude Code honors, so the user can see at a glance why prompts are (or aren't) firing. Claude Code resolves permission mode from a 6-tier stack; a single misconfigured layer produces silent overrides that are hard to debug by eye.
+Show why Claude Code is (or isn't) prompting: which permission mode the session started in, where that came from, and which allow/deny rules apply. The usual causes are a mode set somewhere Claude Code ignores, a session that started before a settings change, or a deny rule.
 
-## The 6 layers (precedence: bottom wins)
+## How the starting mode is chosen (Claude Code 2.1.283+)
 
-1. **VSCode user settings** — `~/Library/Application Support/Code/User/settings.json` (macOS), `%APPDATA%/Code/User/settings.json` (Windows), `~/.config/Code/User/settings.json` (Linux). Key: `claudeCode.initialPermissionMode`.
-2. **VSCode workspace settings** — `<repo>/.vscode/settings.json`. Same key. Wins over user.
-3. **CLI user settings** — `~/.claude/settings.json`. Key: `permissions.defaultMode`.
-4. **CLI project settings** — `<repo>/.claude/settings.json`. Same key. Wins over user.
-5. **CLI project-local settings** — `<repo>/.claude/settings.local.json`. Same key. Wins over project.
-6. **In-session mode** — set at session start from layers 1-5, then mutable via `Shift+Tab` or `/permission-mode`. Authoritative until session ends.
+**Terminal sessions** take the first of these that applies:
 
-**Key insight:** `initialPermissionMode` only fires at session start. If you toggled mid-session (or the session started before a settings change), the file-level settings are correct but the *runtime* mode differs. That's the #1 source of "bypass isn't working" confusion.
+1. The `--permission-mode` flag, or `--dangerously-skip-permissions`.
+2. `permissions.defaultMode` in a settings file. Files rank managed > `--settings` > `.claude/settings.local.json` > `.claude/settings.json` > `~/.claude/settings.json`. **`auto` and `bypassPermissions` in the two project files don't take effect**: `auto` there falls through to the built-in default, `bypassPermissions` there starts the session in Manual. Set them in user or managed settings, or with the flag.
+3. The built-in default: `auto` for interactive terminal sessions; `default` (Manual) for `claude -p`; `default` whenever any settings file sets `disableAutoMode`.
+
+If `auto` is selected but auto mode is unavailable (a setting turns it off, the model doesn't support it), the session starts in Manual.
+
+**VS Code extension conversations** take the first of: `claudeCode.initialPermissionMode` in VS Code *user* settings; the mode last picked from the mode indicator; `permissions.defaultMode` from managed or `~/.claude/settings.json`; the built-in default. The extension never reads a project's `.claude/settings*.json` for the starting mode.
+
+**Mid-session**, Shift+Tab (or the mode indicator) changes the mode; `/status` shows the live one. A settings change does not affect a running session's mode.
+
+**Rules** layer on top: deny rules block in every mode, including `bypassPermissions`; allow rules have no effect in `bypassPermissions`; protected paths are never auto-approved outside it.
 
 ## Privacy contract
 
@@ -48,12 +53,12 @@ CLI_LOCAL="${CLAUDE_PROJECT_DIR}/.claude/settings.local.json"
 ```
 
 For each file that exists, extract:
-- **VSCode workspace:** `claudeCode.initialPermissionMode`, `claudeCode.allowDangerouslySkipPermissions`
+- **VSCode workspace:** any `claudeCode.*` key — note that the starting mode comes from VS Code *user* settings, so a workspace `claudeCode.initialPermissionMode` is a likely cause of confusion
 - **CLI project / project-local:** `permissions.defaultMode`, `permissions.allow`, `permissions.deny`
 
 Missing files are fine — report "not present" rather than erroring.
 
-Print the resolved defaultMode from these three layers alone. If that already explains the prompt behavior (e.g., CLI project-local has `defaultMode: "default"` while project has `bypassPermissions`), stop here and surface the diagnosis.
+Report each `defaultMode` found and whether it takes effect where it is set (`auto` and `bypassPermissions` in these two files do not). If that already explains the behavior, stop here and surface the diagnosis.
 
 ### Phase B: Host-global layers (requires explicit user confirmation)
 
@@ -85,62 +90,39 @@ When reporting their contents, **extract only the relevant keys**:
 
 Never print the full file. Redact everything else to `(other keys redacted)`.
 
-### Step 2: Compute resolved state
+### Step 2: Resolve the starting mode
 
-The resolved `defaultMode` is the value from the highest-precedence layer that sets it. Report:
+Apply the order above. Report which source chose the mode, and name any value that was set but ignored (and why). Then report the merged `allow` and `deny` lists across the CLI files.
 
-- Which layer won the `defaultMode` contest.
-- Merged `allow` list (union across CLI tiers).
-- Merged `deny` list (union; any `deny` blocks the action even if allowed elsewhere).
-- Whether VSCode says `bypass` but CLI says otherwise (or vice versa) — this is a legitimate conflict to flag.
+### Step 3: Compare with the live mode
 
-### Step 3: Report runtime mode
-
-The live in-session mode shows in Claude Code's own footer ("auto mode on", "plan mode on", …) and in `/status`. Tell the user:
-
-> "Your status line shows the current in-session mode in the top-right of the Claude Code panel. If that disagrees with the resolved `defaultMode` above, you (or Shift+Tab) overrode it mid-session. Press Shift+Tab to cycle back."
-
-If they need it in a custom status line, point them at `/statusline`.
+Ask the user to run `/status` (or read the footer: "auto mode on", "plan mode on", …). If it differs from the resolved starting mode, it was changed mid-session (Shift+Tab) or the session started before the settings changed — a new session picks up the settings.
 
 ### Step 4: Flag common failure modes
 
-Check for and explicitly call out:
-
-1. **Layer drift:** CLI project says bypass but CLI local says default → local wins, explains the prompts.
-2. **VSCode-only bypass:** VSCode layers say bypass but no CLI layer does → terminal Claude Code will still prompt; extension may or may not.
-3. **Empty allowlist + default mode:** `defaultMode: "default"` with empty `allow` → every tool prompts, as designed.
-4. **Stale session:** settings are correct but user reports prompts → almost always a session that pre-dates the fix. Advise "Cmd+Shift+P → Developer: Reload Window, then new Claude Code session."
-5. **`deny` wins:** any match in a `deny` list blocks the tool regardless of `allow`. Rare but deadly.
+1. **Ignored value:** `auto` or `bypassPermissions` in `.claude/settings.json` or `.claude/settings.local.json` — not applied; move it to `~/.claude/settings.json` or use `--permission-mode`.
+2. **VS Code reads different files:** a project `defaultMode` never reaches the extension; check `claudeCode.initialPermissionMode` and the last mode picked there.
+3. **Auto mode unavailable:** `disableAutoMode` in any settings file, or a model without auto mode → Manual.
+4. **Stale session:** settings are right but the session predates them → start a new session.
+5. **A deny rule:** any matching deny blocks the tool in every mode.
 
 ## Output format
 
 ```
-=== PERMISSION STATE ===
+=== STARTING MODE ===
+--permission-mode flag:            (not used)
+managed settings:                  (none)
+.claude/settings.local.json:       defaultMode: bypassPermissions   ← IGNORED here (project file) → Manual
+.claude/settings.json:             (not set)
+~/.claude/settings.json:           (not read — needs your OK)
+Resolved: Manual, because bypassPermissions is not honored in project files
 
-Layer 1 — VSCode user:       bypassPermissions      (allowDangerouslySkipPermissions: true)
-Layer 2 — VSCode workspace:  bypassPermissions
-Layer 3 — CLI user:          bypassPermissions      (allow: ["*"])
-Layer 4 — CLI project:       bypassPermissions      (allow: ["Edit(**)", "Bash(*)", ...])
-Layer 5 — CLI project-local: bypassPermissions      (allow: [...], deny: [])
+=== RULES ===
+Merged allow: Bash, Edit, ...      Merged deny: Bash(git push --force*), ...
 
-Resolved defaultMode: bypassPermissions (set by Layer 5)
-Merged allow:         Edit(**), Write(**), Bash(*), ...
-Merged deny:          (none)
-
-=== RUNTIME ===
-
-Check the status line at the top of the Claude Code panel. Expected: [BYPASS].
-If it shows [PROMPT], [AUTO-EDIT], or [PLAN] — that's an in-session override. Press Shift+Tab to cycle.
-
-=== DIAGNOSIS ===
-
-No layer drift detected. If you are still seeing prompts:
-  1. Session is stale (started before settings were applied) — reload window + new session.
-  2. VSCode extension bug — check extension version and file an issue.
-  3. Tool was previously denied in this session — that denial is remembered. New session clears it.
+=== NEXT STEP ===
+Move bypassPermissions to ~/.claude/settings.json, or start with --permission-mode bypassPermissions.
 ```
-
-If any layer disagrees, replace the "No layer drift detected" line with a specific flagged issue.
 
 ## Notes
 
