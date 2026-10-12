@@ -6,6 +6,16 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.6] — 2026-10-12
+
+**Correction to v0.5.5: a commit message with a backtick does not sign.** Claude Code treats any backtick on the command line as a command, even inside single quotes where the shell would not run it, and keeps the commit in the sandbox, where it fails with "gpg failed to sign". Agents put code spans in commit messages all the time, so v0.5.5's "agents sign commits reliably" overstated it. Verified live (Claude Code 2.1.293): ``-m "uses `code` spans"`` and the single-quoted form both fail; apostrophes and `$VAR` in double quotes sign.
+
+- **The rule now says it.** `pr-discipline`: no backtick anywhere in the commit command; write file and code names plainly (git does not render Markdown). In a fresh session with no other hint, an agent asked to add a script and "explain which file to edit" wrote five file names plainly, used the multi-`-m` shape, and the commit came out signed with the trailer kept. A second fresh-session task (adding CONTRIBUTING.md) also signed.
+- **Checked: hooks cannot be used to reach the key.** An excluded `git commit` runs outside the sandbox, so a hook it starts would too. The sandbox already denies writes to `.git/hooks` and `.git/config` (Claude Code's protected paths), and the file tools treat `.git` as protected. Pointing git at a hook directory through environment variables (`GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath … git commit`) keeps the command in the sandbox: the canary hook's write outside it was refused.
+- **Trade-off from v0.5.5, now documented:** with `gpg` no longer excluded, a sandboxed `git log --show-signature` or `git verify-commit` cannot read the public keyring and reports the signature as unverifiable. `git tag -v` still works (`git tag` is excluded). Verify commits from your own terminal, or on GitHub.
+
+---
+
 ## [v0.5.5] — 2026-10-12
 
 **Agents sign commits reliably, and can no longer reach the signing key directly.** Tested live in real Claude Code sessions (2.1.293) on a fresh repo with signing on.

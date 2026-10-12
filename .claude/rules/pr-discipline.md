@@ -18,7 +18,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`
 
 ## Making the commit
 
-Commits and tags here may be signed, and signing works only for a plain command: make each commit with a single `git commit` (optionally `git add … && git commit …`) as its own Bash call, with the message as one or more `-m` options — one per paragraph, the attribution trailer as the last. Don't build the message with a heredoc or `$(…)`, and don't use `-C <dir>` or chain other commands after it; those shapes fail with "gpg failed to sign".
+Commits and tags here may be signed, and signing works only when the commit is a plain command: a single `git commit` (optionally `git add … && git commit …`) as its own Bash call, the message as one `-m` per paragraph with the attribution trailer last. Nothing chained after it, no `-C <dir>`, no heredoc or `$(…)`, and no backtick anywhere in the command — Claude Code reads a backtick as a command even inside single quotes and keeps the commit in the sandbox, where it fails with "gpg failed to sign". Write file and code names in commit messages plainly; git does not render Markdown.
 
 ## When to open a PR
 
