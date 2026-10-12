@@ -16,6 +16,10 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`
 - **Reference spec / plan sections when applicable** — e.g., `(per Task 5 in docs/plans/<plan>)`.
 - **Keep the attribution.** Leave the `Co-Authored-By` trailer Claude Code adds to commits, and its note on pull requests: they record which changes an agent wrote, so the history shows provenance.
 
+## Making the commit
+
+Commits and tags here may be signed, and signing works only for a plain command: make each commit with a single `git commit` (optionally `git add … && git commit …`) as its own Bash call, with the message as one or more `-m` options — one per paragraph, the attribution trailer as the last. Don't build the message with a heredoc or `$(…)`, and don't use `-C <dir>` or chain other commands after it; those shapes fail with "gpg failed to sign".
+
 ## When to open a PR
 
 - Feature complete and verified — all tests pass, all lints clean.

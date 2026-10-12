@@ -6,6 +6,18 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.5] — 2026-10-12
+
+**Agents sign commits reliably, and can no longer reach the signing key directly.** Tested live in real Claude Code sessions (2.1.293) on a fresh repo with signing on.
+
+- **The shapes that sign, and a rule that steers agents to them.** Signing works when the commit is a plain command — `git commit -m … [-m …]`, `git add … && git commit …`, `git tag -s` — because those run outside the sandbox. It failed for the form Claude Code itself prefers for multi-line messages (`git commit -m "$(cat <<'EOF' … EOF)"`), for `-F - <<heredoc`, `git -C <dir>`, and anything chained after the commit (`&& git push`, `&& git log`). `pr-discipline` now tells agents to commit with one `-m` per paragraph, the attribution trailer last. Given only that rule, an agent asked to "commit this" chose the signing shape unprompted and the commit came out signed.
+- **`gpg` and `gpg-agent` are no longer excluded from the sandbox.** git starts gpg as its own child, so signing never needed them — verified: commits and tags still sign without them. The exclusion only let a *bare* `gpg` command run with full access to `~/.gnupg`.
+- **Secret-key exports are refused** (`gpg`/`gpg2`/`gpgsm` `--export-secret-keys` / `--export-secret-subkeys`, any position). Verified live with a key ID that does not exist: 3 export spellings refused, `gpg --list-keys` and `gpg --version` still run.
+
+The key never enters the sandbox. A fully in-sandbox design (signing through gpg-agent's restricted socket) stays optional — see research doc 18 §2.
+
+---
+
 ## [v0.5.4] — 2026-10-10
 
 From a review of everything the template ships against Anthropic's current prompting guides for the Claude 5.5 models and the skill-authoring guide (research doc 18).

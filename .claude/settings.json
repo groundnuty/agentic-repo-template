@@ -193,7 +193,13 @@
       "Edit(~/.zprofile)",
       "Edit(~/.zshenv)",
       "mcp__papers__download_scihub",
-      "mcp__papers__download_with_fallback"
+      "mcp__papers__download_with_fallback",
+      "Bash(gpg --export-secret*)",
+      "Bash(gpg * --export-secret*)",
+      "Bash(gpg2 --export-secret*)",
+      "Bash(gpg2 * --export-secret*)",
+      "Bash(gpgsm --export-secret*)",
+      "Bash(gpgsm * --export-secret*)"
     ]
   },
   "promptCacheTtl": "1h",
@@ -253,9 +259,7 @@
       "devbox:*",
       "git add:*",
       "git commit:*",
-      "git tag:*",
-      "gpg:*",
-      "gpg-agent:*"
+      "git tag:*"
     ],
     "filesystem": {
       "allowWrite": [

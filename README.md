@@ -344,8 +344,9 @@ Excluded commands run **entirely outside** the sandbox, and matching is broad (a
 | `devbox:*` | Nix-backed store writes outside allowed paths |
 | `git commit:*`, `git tag:*` | **Signed** commits/tags: git spawns gpg, which needs the `~/.gnupg` agent socket `sandbox.credentials` guards. Scoped to these two verbs — the blanket `git:*` hole stays closed (v0.3.1) |
 | `git add:*` | Lets the usual `git add … && git commit …` chain sign. Since Claude Code 2.1.277 a compound command leaves the sandbox only when **every** part matches an entry, so `git add x && <anything>` stays sandboxed. **Written only when the Claude Code running `init.sh`/`upgrade.sh` is 2.1.277 or newer** — on an older version one matching part unsandboxed the whole chain (v0.4.10) |
-| `gpg:*`, `gpg-agent:*` | Signing needs the `~/.gnupg` agent socket that `denyRead` guards |
 | `helm/kubectl/kustomize/terraform/docker/podman:*` (code profile) | Go-binary TLS fails under Seatbelt; docker daemon socket |
+
+**Not excluded since v0.5.5: `gpg` and `gpg-agent`.** git starts gpg as its own child, so a signing `git commit`/`git tag` reaches the key without them (verified live). Excluding them only let a *bare* `gpg` command run with full access to `~/.gnupg`; deny rules now also refuse secret-key exports (`gpg --export-secret-keys` and variants). Signing works for the plain shapes only — `git commit -m … [-m …]`, `git add … && git commit …`, `git tag -s` — and fails for a heredoc or `$(…)` message, `git -C`, or a trailing `&& …`; the `pr-discipline` rule tells agents to use the plain shapes.
 
 Git now runs **sandboxed**. If signed tags or ssh-remote pushes fail in your environment, the failed command falls back to the regular permission flow (a prompt, not breakage); a per-repo escape hatch is `settings.local.json` → `sandbox.excludedCommands: ["git tag:*"]` — scope it to the narrow operation, never `git:*`.
 
