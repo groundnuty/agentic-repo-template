@@ -9,8 +9,10 @@ A GitHub template repository with sane Claude Code defaults for autonomous work.
 Installed as **`art`** — short, and free of the `/usr/sbin/arp` collision macOS would otherwise give you.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/art.sh -o ~/.local/bin/art && chmod +x ~/.local/bin/art
+mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/art.sh -o ~/.local/bin/art && chmod +x ~/.local/bin/art
 ```
+
+`~/.local/bin` must be on your `PATH` (add `export PATH="$HOME/.local/bin:$PATH"` to your shell profile if `art --version` isn't found).
 
 Then, in any directory you want to work in — **local-only is fine; no GitHub repo, no fork, no remote**:
 

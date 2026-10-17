@@ -6,6 +6,13 @@ Design rationale, empirical research, and decision history live in [agentic-repo
 
 ---
 
+## [v0.5.7] — 2026-10-17
+
+- **`art --help` showed an install command that 404s.** It downloaded `.../main/arp.sh`, a file that never existed; the CLI is `art.sh`. Fixed, and a test now checks that every install URL in the README, the scripts and the commands points at a file the template ships.
+- **The install command creates `~/.local/bin` first.** On a fresh machine the directory often doesn't exist, and `curl -o` doesn't create it. The README also says to put `~/.local/bin` on your `PATH`.
+
+---
+
 ## [v0.5.6] — 2026-10-12
 
 **Correction to v0.5.5: a commit message with a backtick does not sign.** Claude Code treats any backtick on the command line as a command, even inside single quotes where the shell would not run it, and keeps the commit in the sandbox, where it fails with "gpg failed to sign". Agents put code spans in commit messages all the time, so v0.5.5's "agents sign commits reliably" overstated it. Verified live (Claude Code 2.1.293): ``-m "uses `code` spans"`` and the single-quoted form both fail; apostrophes and `$VAR` in double quotes sign.

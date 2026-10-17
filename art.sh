@@ -21,7 +21,7 @@
 #   art update                    refresh the cached template (do this to get new releases)
 #
 # Install:
-#   curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/arp.sh \
+#   mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/groundnuty/agentic-repo-template/main/art.sh \
 #     -o ~/.local/bin/art && chmod +x ~/.local/bin/art
 #   (ensure ~/.local/bin is on PATH)
 #
